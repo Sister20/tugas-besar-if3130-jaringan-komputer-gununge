@@ -1,8 +1,5 @@
 # Constant Values
-SYN_FLAG = 0x02
-ACK_FLAG = 0x08
-FIN_FLAG = 0x01
-DEFAULT_FLAG = 0x00
+from Constant import *
 
 class SegmentFlag:
     def __init__(self, flag: bytes) -> None:
