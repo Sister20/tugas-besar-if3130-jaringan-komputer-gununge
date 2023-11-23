@@ -1,5 +1,5 @@
 # Constant Values
-from Constant import *
+from .Constant import *
 
 class SegmentFlag:
     def __init__(self, flag: bytes) -> None:

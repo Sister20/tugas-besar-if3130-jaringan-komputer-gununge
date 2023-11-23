@@ -1,7 +1,7 @@
 from typing import Callable
 import socket
-from MessageInfo import MessageInfo
-
+from .MessageInfo import MessageInfo
+from .Segment import Segment
 
 class Connection:
     def __init__(self, ip: str = 'localhost', port: int = 6969):
@@ -11,15 +11,16 @@ class Connection:
         self.__socket.bind((self.ip, self.port))
         self.__handler = None
 
-    def send(self, ip_remote: str, port_remote: int, message: str):
-        self.__socket.sendto(message.encode(), (ip_remote, port_remote))
+    def send(self, ip_remote: str, port_remote: int, message: Segment):
+        self.__socket.sendto(message.get_bytes(), (ip_remote, port_remote))
 
     def listen(self):
-        while True:
-            data, addr = self.__socket.recvfrom(32768)
-            message = MessageInfo(data, addr)
-            if self.__handler:
-                self.__handler(message)
+        data, addr = self.__socket.recvfrom(32768-12)
+        message = MessageInfo(data, addr)
+        message.segment.set_from_bytes(data)
+        if self.__handler:
+            self.__handler(message)
+        return message, addr;
 
     def close(self):
         self.__socket.close()

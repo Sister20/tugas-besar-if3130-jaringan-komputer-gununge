@@ -1,6 +1,6 @@
 import struct
-from Constant import *
-from SegmentFlag import *
+from .Constant import *
+from .SegmentFlag import *
 
 class Segment:
     # -- Internal Function --
@@ -13,7 +13,7 @@ class Segment:
         # self.header['emptyPadding']     = 0
         self.header['checksum']         = 0
         
-        self.data                       = 0 # apa ini kak? payload tapi isinya apa?
+        self.data                       = b"" # apa ini kak? payload tapi isinya apa?
 
     def __str__(self):
         # Optional, override this method for easier print(segmentA)
@@ -90,12 +90,14 @@ class Segment:
 
     def get_bytes(self) -> bytes:
         # Convert this object to pure bytes
-        header_bytes = struct.pack('iibbH', self.header['seqNumber'], self.header['ackNumber'], self.header['flag'], DEFAULT_FLAG, self.header['checksum'])
+        print(self.header)
+        header_bytes = struct.pack('iibbH', self.header['seqNumber'], self.header['ackNumber'], self.header['flag'], self.header['checksum'], DEFAULT_FLAG)
         return header_bytes + self.data
 
     def get_bytes_no_checksum(self) -> bytes:
         # Get bytes without checksum
         header_bytes = struct.pack('iibb', self.header['seqNumber'], self.header['ackNumber'], self.header['flag'], DEFAULT_FLAG)
+        print(header_bytes)
         return header_bytes + self.data
 
     # -- Checksum --
@@ -104,18 +106,18 @@ class Segment:
         return self.calculate_checksum() == self.header['checksum']
     
     def calculate_checksum(self) -> int:
-            # Calculate checksum here, return checksum result
-            sum = 0
-            data_bytes = self.get_bytes_no_checksum()
+        # Calculate checksum here, return checksum result
+        sum = 0
+        data_bytes = self.get_bytes_no_checksum()
 
-            if (len(data_bytes) % 2 != 0):
-                data_bytes = b'\x00' + data_bytes
-                
-            for i in range(0, len(data_bytes), 2):
-                sum += int.from_bytes(data_bytes[i:i+2], byteorder='big')
-            while sum >> 16:
-                sum = (sum & 0xffff) + (sum >> 16)
-            return ~sum & 0xffff
+        if (len(data_bytes) % 2 != 0):
+            data_bytes = b'\x00' + data_bytes
+            
+        for i in range(0, len(data_bytes), 2):
+            sum += int.from_bytes(data_bytes[i:i+2], byteorder='big')
+        while sum >> 16:
+            sum = (sum & 0xffff) + (sum >> 16)
+        return ~sum & 0xffff
 
     def update_checksum(self):
         # Update checksum value
