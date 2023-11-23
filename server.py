@@ -22,7 +22,6 @@ class Server(Node):
             try:
                 syn, _ = self.run();
                 bendera_syn = syn.segment.get_flag()
-                ip_client = syn.getIP()
                 port_client = syn.getPort()
                 if bendera_syn           .syn:
                     print("Bendera syn diterima Kakak - 13521015")
@@ -36,7 +35,7 @@ class Server(Node):
         # Waktunya kirim SYN ACK (kakak)
         syn_ack = Segment()
         syn_ack.set_flag([        True        ,         True       ,        False       ])
-        self.   connection  . send     (ip_client, port_client, syn_ack)
+        self.   connection  . send     (port_client[0], port_client[1], syn_ack)
 
         while True:
             try:
@@ -60,30 +59,8 @@ def load_args():
     args = arg.parse_args()
     return args
 
-def listen(port):
-    # create a socket object and connect to the server
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(('', port))
-    s.listen(5)
-    print('Listening on port', port)
-    return s
-
-def main():
-    args = load_args()
-    print(args)
-
-    s = listen(args.port)
-    while True:
-        # establish connection with client
-        c, addr = s.accept()
-        print('Got connection from', addr)
-        # receive data from client
-        data = c.recv(1024)
-        print('Received', repr(data))
-        # send data to client
-        c.send(data)
-        # close the connection
-        c.close()
-
 if __name__ == '__main__':
-    main()
+    args = load_args()
+    conn = Connection(port=3839)
+    server = Server(conn)
+    server.three_way_handshake()

@@ -90,14 +90,12 @@ class Segment:
 
     def get_bytes(self) -> bytes:
         # Convert this object to pure bytes
-        print(self.header)
-        header_bytes = struct.pack('iibbH', self.header['seqNumber'], self.header['ackNumber'], self.header['flag'], self.header['checksum'], DEFAULT_FLAG)
+        header_bytes = struct.pack('iibbH', self.header['seqNumber'], self.header['ackNumber'], self.header['flag'], DEFAULT_FLAG, self.header['checksum'])
         return header_bytes + self.data
 
     def get_bytes_no_checksum(self) -> bytes:
         # Get bytes without checksum
         header_bytes = struct.pack('iibb', self.header['seqNumber'], self.header['ackNumber'], self.header['flag'], DEFAULT_FLAG)
-        print(header_bytes)
         return header_bytes + self.data
 
     # -- Checksum --

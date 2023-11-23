@@ -53,7 +53,7 @@ def load_args():
 
 if __name__ == "__main__":
     args = load_args()
-    conn = Connection()
+    conn = Connection(port=3939)
     informasiPesan = MessageInfo("localhost", 50)
-    klien = Client(conn, "localhost", 50)
+    klien = Client(conn, "localhost", 3839)
     klien.three_way_handshake(informasiPesan)
