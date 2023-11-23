@@ -15,3 +15,9 @@ class SegmentFlag:
         flag |= (ACK_FLAG if self.ack else DEFAULT_FLAG)
         flag |= (FIN_FLAG if self.fin else DEFAULT_FLAG)
         return flag
+
+if __name__ == "__main__":
+    seg = SegmentFlag(0x02)
+    print(seg.get_flag_bytes())
+    
+    

@@ -121,3 +121,17 @@ class Segment:
         # Update checksum value
         self.header['checksum'] = self.calculate_checksum()
         
+if __name__ == '__main__':
+    segment = Segment()
+    segment.header['seqNumber'] = 1
+    segment.header['ackNumber'] = 2
+    segment.header['flag'] = SYN_FLAG
+    segment.data = b"Hello World"
+    segment.update_checksum()
+    print(segment.calculate_checksum())
+    if segment.valid_checksum():
+        print("Checksum valid")
+    else:
+        print("Checksum invalid")
+    print(segment.get_bytes_no_checksum().hex())
+    print(segment.get_bytes().hex())

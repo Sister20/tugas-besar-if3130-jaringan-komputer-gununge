@@ -25,6 +25,9 @@ class MessageInfo:
         
     def setSegment(self, segment):
         self.segment = segment
+        
+    def __call__(self):
+        print("Hai aku Gay")
     
     def __str__(self):
         return "IP: " + str(self.ip) + ", Port: " + str(self.port) + ", Segment: " + str(self.segment)
