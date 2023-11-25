@@ -17,7 +17,9 @@ class Connection:
         self.__socket.sendto(message.get_bytes(), (ip_remote, port_remote))
 
     def listen(self):
-        data, addr = self.__socket.recvfrom(32756)
+        print("Listening")
+        data, addr = self.__socket.recvfrom(32768)
+        print(f"Received from {addr}")
         message = MessageInfo(data, addr)
         message.segment.set_from_bytes(data)
         if self.__handler:

@@ -3,12 +3,16 @@ from lib.MessageInfo import MessageInfo
 from lib.Node import Node
 from lib.Connection import Connection
 from lib.Segment import Segment
+from lib.Constant import*
+from lib.Utils import*
 
 class Client(Node):
-    def __init__(self, connection: Connection, server_ip: str, server_port: str):
+    def __init__(self, connection: Connection, server_ip: str, server_port: str, file_path: str):
         self.connection = connection
         self.server_ip = server_ip
         self.server_port = server_port
+        self.file_path = file_path
+        self.file = []
 
     def run(self):
         return self.connection.listen()
@@ -34,6 +38,10 @@ class Client(Node):
                     # Kirim ACK
                     ack = Segment()
                     ack.set_flag([Salah, Benar, Salah])
+                    self.connection.send(self.server_ip, self.server_port, ack)
+                    # listen file
+                    self.listen_file()
+
                     return Benar
                 else:
                     print("Wah ini mah kena otaknya")
@@ -41,13 +49,65 @@ class Client(Node):
 
             except Exception as aduhSalah:
                 print(aduhSalah)
+    
+    def listen_file(self):
+        N = WINDOW_SIZE
+        Rn = 0
+        Sb = 0
+
+        # Terima file, pengulangan hingga file selesai
+        while True:
+            try:
+                print("Menerima file")
+                file_segment, _ = self.run()
+                print("File diterima kakak")
+                Sb = file_segment.segment.get_header()['seqNumber']
+                flag = file_segment.segment.get_flag()
+
+                # Jika FIN, maka kirim FIN ACK
+                if flag.fin:
+                    print("FIN diterima kakak")
+                    bytearray = merge_file(self.file)
+                    file = open(self.file_path, 'wb')
+                    file.write(bytearray)
+                    file.close()
+                    # ack ke server
+                    ack = Segment()
+                    ack.set_flag([False, False, True])
+                    self.connection.send(self.server_ip, self.server_port, ack)
+                    print("Kirim ACK")
+                    break
+                
+                elif Sb == Rn:
+                    last = len(self.file)
+                    print(last)
+                    if last == Sb:
+                        self.file.append(file_segment.segment.get_data())
+                        Rn += 1
+
+                    # Kirim ACK
+                    ack = Segment()
+                    ack.set_flag([False, True, False])
+                    ack.set_ack_number(Sb)
+                    self.connection.send(self.server_ip, self.server_port, ack)
+                    print("Kirim ACK")
+                else :
+                    print(Sb,Rn)
+                    if (Rn - Sb >= N):
+                        self.connection.send(self.server_ip, self.server_port, ack)
+                    else:
+                        print("Tolak segment")
+
+            except Exception as e:
+                print(e)
+                break
 
 
 def load_args():
     arg = argparse.ArgumentParser()
     arg.add_argument('-c', '--client', type=int, default=8000, help='port the client is on')
     arg.add_argument('-p', '--port', type=int, default=8080, help='port to listen on')
-    arg.add_argument('-f', '--file', type=str, default='input.txt', help='path to file input')
+    arg.add_argument('-f', '--file', type=str, default='output.mp4', help='path to file input')
     args = arg.parse_args()
     return args
 
@@ -55,5 +115,5 @@ if __name__ == "__main__":
     args = load_args()
     conn = Connection(port=3939)
     informasiPesan = MessageInfo("localhost", 50)
-    klien = Client(conn, "localhost", 3839)
+    klien = Client(conn, server_ip="localhost", server_port=3839, file_path=args.file)
     klien.three_way_handshake(informasiPesan)
