@@ -1,4 +1,5 @@
 import argparse
+import socket
 from lib.MessageInfo import MessageInfo
 from lib.Node import Node
 from lib.Connection import Connection
@@ -24,31 +25,33 @@ class Client(Node):
         # Client kirim SYN
         syn = Segment()
         syn.set_flag([True, False, False])
+        self.connection.setTimeout(TIMEOUT_TIME)
         self.connection.send(self.server_ip, self.server_port, syn)
 
         # Client Terima Syn Ack
-        self.connection.setTimeout(TIMEOUT_TIME)
         while True:
             try:
                 syn_ack, _ = self.run()
                 pataka_syn_ack = syn_ack.segment.get_flag()
                 if(pataka_syn_ack.syn and pataka_syn_ack.ack):
                     print("SYN ACK Keterima Kakak")
-                    # Kirim ACK
-                    ack = Segment()
-                    ack.set_flag([False, True, False])
-                    self.connection.send(self.server_ip, self.server_port, ack)
-                    # listen file
-                    self.listen_file()
-
-                    return True
+                    break
                 else:
                     print("Wah ini mah kena otaknya")
                     return False
 
-            except Exception as aduhFalse:
-                print(aduhFalse)
-    
+            except socket.timeout:
+                print("Timeout Kakak")
+
+        # Client kirim ACK
+        ack = Segment()
+        ack.set_flag([False, True, False])
+        self.connection.setTimeout(TIMEOUT_TIME)
+        self.connection.send(self.server_ip, self.server_port, ack)
+        
+        self.listen_file()
+        return True
+
     def listen_file(self):
         N = WINDOW_SIZE
         Rn = 0
