@@ -21,27 +21,29 @@ class Server(Node):
         return "asdasdasdas"
     
     def three_way_handshake(self):
-        ip_client = None;
-        port_client = None;
+        ip_client = None
+        port_client = None
         while True:
             try:
                 syn, _ = self.run();
                 bendera_syn = syn.segment.get_flag()
                 port_client = syn.getPort()
-                if bendera_syn           .syn:
+                if bendera_syn.syn:
                     print("Bendera syn diterima Kakak - 13521015")
-                    break;
+                    break
                 else:
                     print("Bukan syn kakak - Willy")
 
-            except Exception as e:
-                print(e)
+            except socket.timeout:
+                print("Timeout kakak - Willy")
 
         # Waktunya kirim SYN ACK (kakak)
         syn_ack = Segment()
-        syn_ack.set_flag([        True        ,         True       ,        False       ])
-        self.   connection  . send     (port_client[0], port_client[1], syn_ack)
+        syn_ack.set_flag([True,True,False])
+        self.connection.setTimeout(TIMEOUT_TIME)
+        self.connection.send(port_client[0], port_client[1], syn_ack)
 
+        # Waktunya terima ACK (kakak)
         while True:
             try:
                 ack, _ = self.run()
@@ -53,10 +55,10 @@ class Server(Node):
                     break
                 else:
                     print("BUKAN ACK GO***")
-            except Exception as tai:
-                print(tai)
-        
-        # KIRIM FILE
+            except socket.timeout:
+                print("Timeout kakak")
+
+    # KIRIM FILE
     def send_file(self,ip_client: str, port_client: int):
         # INISIALISASI SEGMENT
         N = WINDOW_SIZE
@@ -101,42 +103,34 @@ class Server(Node):
         # Terima FIN ACK
         while True:
             try:
-                fin_ack, _ = self.run()
-                bendera_fin_ack = fin_ack.segment.get_flag()
-                if bendera_fin_ack.fin and bendera_fin_ack.ack:
-                    print("FIN ACK diterima kakak")
+                fin, _ = self.run()
+                bendera_fin = fin.segment.get_flag()
+                print("bendera ack : ", bendera_fin.ack)
+                print("bendera fin : ", bendera_fin.fin)
+                if bendera_fin.fin:
+                    print("FIN diterima kakak")
                     break
                 else:
                     print("Bukan FIN ACK kakak")
             except Exception as e:
-                print(e)
-        # Terima ACK
-        while True:
-            try:
-                ack, _ = self.run()
-                bendera_ack = ack.segment.get_flag()
-                if bendera_ack.ack and not bendera_ack.fin:
-                    print("ACK diterima kakak")
-                    break
-                else:
-                    print("Bukan ACK kakak")
-            except Exception as e:
+                print("Timeout kakak")
                 print(e)
         # Tutup koneksi
+        print("Tutup koneksi")
         self.connection.close()
 
 def load_args():
     arg = argparse.ArgumentParser()
     arg.add_argument('-p', '--port', type=int, default=5000, help='port to listen on')
-    arg.add_argument('-f', '--file', type=str, default='input.mp4', help='path to file input')
+    arg.add_argument('-f', '--file', type=str, default='input.txt', help='path to file input')
     arg.add_argument('-par', '--parallel', type=int, default=0, help='turn on/off parallel mode')
     args = arg.parse_args()
     return args
 
 if __name__ == '__main__':
-    args = load_args()
-    conn = Connection(port=3839)
-    server = Server(conn, file_path=args.file)
     while True:
+        args = load_args()
+        conn = Connection(port=3839)
+        server = Server(conn, file_path=args.file)
         server.three_way_handshake()
         print("Selesai")

@@ -36,6 +36,8 @@ class Connection:
         if self.__handler:
             self.__handler(message)
 
+    def setTimeout(self, timeout: int):
+        self.__socket.settimeout(timeout)
 
 if __name__ == "__main__":
     conn = Connection()
