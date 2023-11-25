@@ -40,6 +40,7 @@ class Server(Node):
         # Waktunya kirim SYN ACK (kakak)
         syn_ack = Segment()
         syn_ack.set_flag([        True        ,         True       ,        False       ])
+        self.connection.setTimeout(TIMEOUT_TIME)
         self.   connection  . send     (port_client[0], port_client[1], syn_ack)
 
         while True:
@@ -128,7 +129,7 @@ class Server(Node):
 def load_args():
     arg = argparse.ArgumentParser()
     arg.add_argument('-p', '--port', type=int, default=5000, help='port to listen on')
-    arg.add_argument('-f', '--file', type=str, default='input.mp4', help='path to file input')
+    arg.add_argument('-f', '--file', type=str, default='input.txt', help='path to file input')
     arg.add_argument('-par', '--parallel', type=int, default=0, help='turn on/off parallel mode')
     args = arg.parse_args()
     return args

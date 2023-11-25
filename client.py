@@ -27,9 +27,8 @@ class Client(Node):
         self.connection.send(self.server_ip, self.server_port, syn)
 
         # Client Terima Syn Ack
-        Benar = True
-        Salah = False
-        while Benar:
+        self.connection.setTimeout(TIMEOUT_TIME)
+        while True:
             try:
                 syn_ack, _ = self.run()
                 pataka_syn_ack = syn_ack.segment.get_flag()
@@ -37,18 +36,18 @@ class Client(Node):
                     print("SYN ACK Keterima Kakak")
                     # Kirim ACK
                     ack = Segment()
-                    ack.set_flag([Salah, Benar, Salah])
+                    ack.set_flag([False, True, False])
                     self.connection.send(self.server_ip, self.server_port, ack)
                     # listen file
                     self.listen_file()
 
-                    return Benar
+                    return True
                 else:
                     print("Wah ini mah kena otaknya")
-                    return Salah
+                    return False
 
-            except Exception as aduhSalah:
-                print(aduhSalah)
+            except Exception as aduhFalse:
+                print(aduhFalse)
     
     def listen_file(self):
         N = WINDOW_SIZE
