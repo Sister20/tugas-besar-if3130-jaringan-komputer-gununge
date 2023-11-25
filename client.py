@@ -58,7 +58,9 @@ class Client(Node):
         # Terima file, pengulangan hingga file selesai
         while True:
             try:
+                print("Menerima file")
                 file_segment, _ = self.run()
+                print("File diterima kakak")
                 Sb = file_segment.segment.get_header()['seqNumber']
                 flag = file_segment.segment.get_flag()
 
@@ -77,7 +79,7 @@ class Client(Node):
                     break
                 
                 elif Sb == Rn:
-                    last = len(file_segment.segment.get_data())
+                    last = len(self.file)
                     print(last)
                     if last == Sb:
                         self.file.append(file_segment.segment.get_data())
@@ -105,7 +107,7 @@ def load_args():
     arg = argparse.ArgumentParser()
     arg.add_argument('-c', '--client', type=int, default=8000, help='port the client is on')
     arg.add_argument('-p', '--port', type=int, default=8080, help='port to listen on')
-    arg.add_argument('-f', '--file', type=str, default='output.txt', help='path to file input')
+    arg.add_argument('-f', '--file', type=str, default='output.mp4', help='path to file input')
     args = arg.parse_args()
     return args
 
