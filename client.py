@@ -16,8 +16,7 @@ class Client(Node):
         self.file_path = file_path
         self.file = []
         self.log = Logger("Client")
-        self.receivedFile = 0
-        self.BUFFER_SIZE = 1024
+        self.buffer_size = 1024
 
     def run(self):
         return self.connection.listen()
@@ -57,35 +56,48 @@ class Client(Node):
         return True
 
     def listen_file(self):
+        N = WINDOW_SIZE
+        Rn = 0
+        Sb = 0
 
+        # Terima file, pengulangan hingga file selesai
         while True:
             try:
                 self.log.alert_log("Receiving file...")
                 file_segment, _ = self.run()
                 self.log.success_log("File received")
-                seq_number = file_segment.segment.get_header()['seqNumber']
+                Sb = file_segment.segment.get_header()['seqNumber']
                 flag = file_segment.segment.get_flag()
 
-                with open(self.file_path, 'ab') as file:
-                    # Jika FIN, maka kirim FIN ACK
-                    if flag.fin:
-                        self.log.success_log("FIN received")
-                        ack = Segment()
-                        ack.set_flag([False, False, True])
-                        self.connection.send(self.server_ip, self.server_port, ack)
-                        self.log.alert_log("Sending ACK")
-                        break
-                    else:
-                        data = file_segment.segment.get_data()
-                        file.seek(seq_number * self.BUFFER_SIZE)
+                # Jika FIN, maka kirim FIN ACK
+                if flag.fin:
+                    self.log.success_log("FIN received")
+                    # ack ke server
+                    ack = Segment()
+                    ack.set_flag([False, False, True])
+                    self.connection.send(self.server_ip, self.server_port, ack)
+                    self.log.alert_log("Sending ACK")
+                    break
+                
+                elif Sb == Rn:
+                    data = file_segment.segment.get_data()
+                    if data:
+                        file = open(self.file_path, 'ab')
+                        file.seek(Sb)
                         file.write(data)
-                        
-                        # Kirim ACK
-                        ack = Segment()
-                        ack.set_flag([False, True, False])
-                        ack.set_ack_number(seq_number)
+                        Rn += len(data)
+
+                    # Kirim ACK
+                    ack = Segment()
+                    ack.set_flag([False, True, False])
+                    ack.set_ack_number(Sb)
+                    self.connection.send(self.server_ip, self.server_port, ack)
+                    self.log.alert_log("Sending ACK")
+                else :
+                    if (Rn - Sb >= N):
                         self.connection.send(self.server_ip, self.server_port, ack)
-                        self.log.alert_log("Sending ACK")
+                    else:
+                        self.log.warning_log("Segment duplicate")
 
             except Exception as e:
                 self.log.warning_log(e)
