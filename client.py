@@ -16,6 +16,7 @@ class Client(Node):
         self.file_path = file_path
         self.file = []
         self.log = Logger("Client")
+        self.receivedFile = 0
 
     def run(self):
         return self.connection.listen()
@@ -68,11 +69,21 @@ class Client(Node):
                 Sb = file_segment.segment.get_header()['seqNumber']
                 flag = file_segment.segment.get_flag()
 
+                if len(self.file) == 10:
+                    bytearray = merge_file(self.file)
+                    file = open(self.file_path, 'ab')
+                    file.write(bytearray)
+                    file.flush()
+                    file.close()
+                    self.file = []
+                    print("file ke-" + str(self.receivedFile) + " berhasil diterima")
+                    self.receivedFile += 10
+
                 # Jika FIN, maka kirim FIN ACK
                 if flag.fin:
                     self.log.success_log("FIN received")
                     bytearray = merge_file(self.file)
-                    file = open(self.file_path, 'wb')
+                    file = open(self.file_path, 'ab')
                     file.write(bytearray)
                     file.close()
                     # ack ke server
@@ -83,7 +94,7 @@ class Client(Node):
                     break
                 
                 elif Sb == Rn:
-                    last = len(self.file)
+                    last = len(self.file) + self.receivedFile
                     if last == Sb:
                         self.file.append(file_segment.segment.get_data())
                         Rn += 1
