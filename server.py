@@ -6,6 +6,7 @@ from lib.Node import Node
 from lib.Segment import Segment
 from lib.Constant import*
 from lib.Utils import*
+from lib.Logger import Logger
 
 class Server(Node):
     def __init__(self, connection: Connection, file_path: str):
@@ -13,6 +14,7 @@ class Server(Node):
         self.file_path = file_path
         self.file = open(self.file_path, 'rb').read()
         self.file_segment = breakdown_file(self.file)
+        self.log = Logger("Server")
 
     def run(self):
         return self.connection.listen()
@@ -29,13 +31,13 @@ class Server(Node):
                 bendera_syn = syn.segment.get_flag()
                 port_client = syn.getPort()
                 if bendera_syn.syn:
-                    print("Bendera syn diterima Kakak - 13521015")
+                    self.log.success_log("SYN received")
                     break
                 else:
-                    print("Bukan syn kakak - Willy")
+                    self.log.warning_log("Not SYN")
 
             except socket.timeout:
-                print("Timeout kakak - Willy")
+                self.log.alert_log("Connection timed out")
 
         # Waktunya kirim SYN ACK (kakak)
         syn_ack = Segment()
@@ -49,14 +51,14 @@ class Server(Node):
                 ack, _ = self.run()
                 benderack = ack.segment.get_flag()
                 if(benderack.ack and not benderack.syn and not benderack.fin):
-                    print("ACK diterima kakak")
-                    print("Kirim file")
+                    self.log.success_log("ACK received")
+                    self.log.alert_log("Sending file...")
                     self.send_file(port_client[0], port_client[1])
                     break
                 else:
-                    print("BUKAN ACK GO***")
+                    self.log.warning_log("Not ACK")
             except socket.timeout:
-                print("Timeout kakak")
+                self.warning_log("Connection timed out")
 
     # KIRIM FILE
     def send_file(self,ip_client: str, port_client: int):
@@ -66,7 +68,7 @@ class Server(Node):
         Sb = 0
         Sm = N + 1
         SegmentCount = len(self.file_segment)
-        print(f"Segment count: {SegmentCount}")
+        self.log.alert_log(f"Segment count: {SegmentCount}")
 
         while True:
             # Kirim segmen jika dan hanya jika Sb <= Rn < Sm
@@ -77,13 +79,13 @@ class Server(Node):
                     break
                 segment.set_data(self.file_segment[Rn])
                 self.connection.send(ip_client, port_client, segment)
-                print(f"Kirim segmen {Rn}")
+                self.log.alert_log(f"Sending segment {Rn}")
                 Rn += 1
             # Terima ACK
             try:
                 ack, _ = self.run()
                 ack_number = ack.segment.get_header()['ackNumber']
-                print(f"Terima ACK {ack_number}")
+                self.log.success_log(f"ACK {ack_number} received")
                 if ack_number == SegmentCount - 1:
                     break
                 Sb = ack_number
@@ -99,24 +101,22 @@ class Server(Node):
         fin = Segment()
         fin.set_flag([False, False, True])
         self.connection.send(ip_client, port_client, fin)
-        print("Kirim FIN")
+        self.log.alert_log("Sending FIN")
         # Terima FIN ACK
         while True:
             try:
                 fin, _ = self.run()
                 bendera_fin = fin.segment.get_flag()
-                print("bendera ack : ", bendera_fin.ack)
-                print("bendera fin : ", bendera_fin.fin)
                 if bendera_fin.fin:
-                    print("FIN diterima kakak")
+                    self.log.success_log("FIN ACK received")
                     break
                 else:
-                    print("Bukan FIN ACK kakak")
+                    self.log.warning_log("Not FIN ACK")
             except Exception as e:
-                print("Timeout kakak")
+                self.warning_log("Connection timed out")
                 print(e)
         # Tutup koneksi
-        print("Tutup koneksi")
+        self.log.success_log("Connection closed")
         self.connection.close()
 
 def load_args():
@@ -133,4 +133,3 @@ if __name__ == '__main__':
         conn = Connection(port=3839)
         server = Server(conn, file_path=args.file)
         server.three_way_handshake()
-        print("Selesai")

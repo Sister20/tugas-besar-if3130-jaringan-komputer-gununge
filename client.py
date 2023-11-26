@@ -6,6 +6,7 @@ from lib.Connection import Connection
 from lib.Segment import Segment
 from lib.Constant import*
 from lib.Utils import*
+from lib.Logger import Logger
 
 class Client(Node):
     def __init__(self, connection: Connection, server_ip: str, server_port: str, file_path: str):
@@ -14,6 +15,7 @@ class Client(Node):
         self.server_port = server_port
         self.file_path = file_path
         self.file = []
+        self.log = Logger("Client")
 
     def run(self):
         return self.connection.listen()
@@ -34,14 +36,14 @@ class Client(Node):
                 syn_ack, _ = self.run()
                 pataka_syn_ack = syn_ack.segment.get_flag()
                 if(pataka_syn_ack.syn and pataka_syn_ack.ack):
-                    print("SYN ACK Keterima Kakak")
+                    self.log.success_log("SYN-ACK Received")
                     break
                 else:
-                    print("Wah ini mah kena otaknya")
+                    self.log.warning_log("Not SYN-ACK")
                     return False
 
             except socket.timeout:
-                print("Timeout Kakak")
+                self.log.alert_log("Connection timed out")
 
         # Client kirim ACK
         ack = Segment()
@@ -60,15 +62,15 @@ class Client(Node):
         # Terima file, pengulangan hingga file selesai
         while True:
             try:
-                print("Menerima file")
+                self.log.alert_log("Receiving file...")
                 file_segment, _ = self.run()
-                print("File diterima kakak")
+                self.log.success_log("File received")
                 Sb = file_segment.segment.get_header()['seqNumber']
                 flag = file_segment.segment.get_flag()
 
                 # Jika FIN, maka kirim FIN ACK
                 if flag.fin:
-                    print("FIN diterima kakak")
+                    self.log.success_log("FIN received")
                     bytearray = merge_file(self.file)
                     file = open(self.file_path, 'wb')
                     file.write(bytearray)
@@ -77,12 +79,11 @@ class Client(Node):
                     ack = Segment()
                     ack.set_flag([False, False, True])
                     self.connection.send(self.server_ip, self.server_port, ack)
-                    print("Kirim ACK")
+                    self.log.alert_log("Sending ACK")
                     break
                 
                 elif Sb == Rn:
                     last = len(self.file)
-                    print(last)
                     if last == Sb:
                         self.file.append(file_segment.segment.get_data())
                         Rn += 1
@@ -92,16 +93,15 @@ class Client(Node):
                     ack.set_flag([False, True, False])
                     ack.set_ack_number(Sb)
                     self.connection.send(self.server_ip, self.server_port, ack)
-                    print("Kirim ACK")
+                    self.log.alert_log("Sending ACK")
                 else :
-                    print(Sb,Rn)
                     if (Rn - Sb >= N):
                         self.connection.send(self.server_ip, self.server_port, ack)
                     else:
-                        print("Tolak segment")
+                        self.log.warning_log("Segment duplicate")
 
             except Exception as e:
-                print(e)
+                self.log.warning_log(e)
                 break
 
 

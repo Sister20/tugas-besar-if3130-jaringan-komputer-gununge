@@ -12,13 +12,10 @@ class Connection:
         self.__handler = None
 
     def send(self, ip_remote: str, port_remote: int, message: Segment):
-        print(f"Sending to {ip_remote}:{port_remote}")
         self.__socket.sendto(message.get_bytes(), (ip_remote, port_remote))
 
     def listen(self):
-        print("Listening")
         data, addr = self.__socket.recvfrom(32768)
-        print(f"Received from {addr}")
         message = MessageInfo(data, addr)
         message.segment.set_from_bytes(data)
         if self.__handler:
