@@ -3,6 +3,7 @@ import socket
 from .MessageInfo import MessageInfo
 from .Segment import Segment
 
+
 class Connection:
     def __init__(self, ip: str = 'localhost', port: int = 6969):
         self.ip = ip
@@ -18,9 +19,12 @@ class Connection:
         data, addr = self.__socket.recvfrom(32768)
         message = MessageInfo(data, addr)
         message.segment.set_from_bytes(data)
+        # check checksum
+        if not message.segment.valid_checksum():
+            raise Exception("Checksum not valid")
         if self.__handler:
             self.__handler(message)
-        return message, addr;
+        return message, addr
 
     def close(self):
         self.__socket.close()
@@ -34,6 +38,7 @@ class Connection:
 
     def setTimeout(self, timeout: int):
         self.__socket.settimeout(timeout)
+
 
 if __name__ == "__main__":
     conn = Connection()
