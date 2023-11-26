@@ -13,52 +13,51 @@ class Server(Node):
         self.connection = connection
         self.file_path = file_path
         self.file = open(self.file_path, 'rb').read()
+        self.port_clients = []
         self.file_segment = breakdown_file(self.file)
         self.log = Logger("Server")
 
     def run(self):
-        return self.connection.listen()
+        # three way handshake and send file
+        self.three_way_handshake()
+        self.send_file(self.port_clients[0], self.port_clients[1])
 
     def handleMessageInfo(segment: Segment):
         return "asdasdasdas"
     
     def three_way_handshake(self):
         ip_client = None
-        port_client = None
         while True:
-            try:
-                syn, _ = self.run();
-                bendera_syn = syn.segment.get_flag()
-                port_client = syn.getPort()
-                if bendera_syn.syn:
-                    self.log.success_log("SYN received")
-                    break
-                else:
-                    self.log.warning_log("Not SYN")
-
-            except socket.timeout:
-                self.log.alert_log("Connection timed out")
+            syn, _ = self.connection.listen()
+            bendera_syn = syn.segment.get_flag()
+            self.port_clients = syn.getPort()
+            if bendera_syn.syn:
+                self.log.success_log("SYN received")
+                break
+            else:
+                self.log.warning_log("Not SYN")
 
         # Waktunya kirim SYN ACK (kakak)
         syn_ack = Segment()
         syn_ack.set_flag([True,True,False])
-        self.connection.setTimeout(TIMEOUT_TIME)
-        self.connection.send(port_client[0], port_client[1], syn_ack)
+        self.connection.send(self.port_clients[0], self.port_clients[1], syn_ack)
 
         # Waktunya terima ACK (kakak)
         while True:
             try:
-                ack, _ = self.run()
+                self.connection.setTimeout(TIMEOUT_TIME)
+                ack, _ = self.connection.listen()
                 benderack = ack.segment.get_flag()
                 if(benderack.ack and not benderack.syn and not benderack.fin):
                     self.log.success_log("ACK received")
                     self.log.alert_log("Sending file...")
-                    self.send_file(port_client[0], port_client[1])
                     break
                 else:
                     self.log.warning_log("Not ACK")
             except socket.timeout:
-                self.warning_log("Connection timed out")
+                self.log.warning_log("Connection timed out")
+                self.connection.send(self.port_clients[0], self.port_clients[1], syn_ack)
+                self.log.alert_log("Sending SYN ACK again...")
 
     # KIRIM FILE
     def send_file(self,ip_client: str, port_client: int):
@@ -71,6 +70,7 @@ class Server(Node):
         self.log.alert_log(f"Segment count: {SegmentCount}")
 
         while True:
+            temp = 0
             # Kirim segmen jika dan hanya jika Sb <= Rn < Sm
             while (Sb <= Rn <= Sm and Rn < SegmentCount):
                 segment = Segment()
@@ -81,18 +81,20 @@ class Server(Node):
                 self.connection.send(ip_client, port_client, segment)
                 self.log.alert_log(f"Sending segment {Rn}")
                 Rn += 1
+                temp += 1
             # Terima ACK
             try:
-                ack, _ = self.run()
+                self.connection.setTimeout(TIMEOUT_TIME)
+                ack, _ = self.connection.listen()
                 ack_number = ack.segment.get_header()['ackNumber']
                 self.log.success_log(f"ACK {ack_number} received")
                 if ack_number == SegmentCount - 1:
                     break
                 Sb = ack_number
                 Sm = Sb + N + 1
-            except Exception as e:
-                print(e)
-                break
+            except socket.timeout:
+                Rn = Rn - temp
+                self.log.warning_log("Connection timed out")
         # Tutup koneksi
         self.close_connection(ip_client, port_client)
 
@@ -105,7 +107,7 @@ class Server(Node):
         # Terima FIN ACK
         while True:
             try:
-                fin, _ = self.run()
+                fin, _ = self.connection.listen()
                 bendera_fin = fin.segment.get_flag()
                 if bendera_fin.fin:
                     self.log.success_log("FIN ACK received")
@@ -132,4 +134,4 @@ if __name__ == '__main__':
         args = load_args()
         conn = Connection(port=3839)
         server = Server(conn, file_path=args.file)
-        server.three_way_handshake()
+        server.run()

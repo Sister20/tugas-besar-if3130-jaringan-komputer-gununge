@@ -9,7 +9,7 @@ from lib.Utils import*
 from lib.Logger import Logger
 
 class Client(Node):
-    def __init__(self, connection: Connection, server_ip: str, server_port: str, file_path: str):
+    def __init__(self, connection: Connection, server_ip: str, server_port: str, file_path: str,  clientPort: int, clientIp: str = "localhost"):
         self.connection = connection
         self.server_ip = server_ip
         self.server_port = server_port
@@ -17,9 +17,11 @@ class Client(Node):
         self.file = []
         self.log = Logger("Client")
         self.buffer_size = 1024
+        self.messageInfo = MessageInfo(clientIp, clientPort)
 
     def run(self):
-        return self.connection.listen()
+        self.three_way_handshake(self.messageInfo)
+        self.listen_file()
 
     def handleMessageInfo(segment: Segment):
         pass
@@ -34,7 +36,7 @@ class Client(Node):
         # Client Terima Syn Ack
         while True:
             try:
-                syn_ack, _ = self.run()
+                syn_ack, _ = self.connection.listen()
                 pataka_syn_ack = syn_ack.segment.get_flag()
                 if(pataka_syn_ack.syn and pataka_syn_ack.ack):
                     self.log.success_log("SYN-ACK Received")
@@ -47,12 +49,14 @@ class Client(Node):
                 self.log.alert_log("Connection timed out")
 
         # Client kirim ACK
-        ack = Segment()
-        ack.set_flag([False, True, False])
-        self.connection.setTimeout(TIMEOUT_TIME)
-        self.connection.send(self.server_ip, self.server_port, ack)
-        
-        self.listen_file()
+        try : 
+            ack = Segment()
+            ack.set_flag([False, True, False])
+            self.connection.setTimeout(TIMEOUT_TIME)
+            self.connection.send(self.server_ip, self.server_port, ack)
+        except socket.timeout:
+            self.log.alert_log("Connection timed out")
+            return False
         return True
 
     def listen_file(self):
@@ -64,7 +68,7 @@ class Client(Node):
         while True:
             try:
                 self.log.alert_log("Receiving file...")
-                file_segment, _ = self.run()
+                file_segment, _ = self.connection.listen()
                 self.log.success_log("File received")
                 Sb = file_segment.segment.get_header()['seqNumber']
                 flag = file_segment.segment.get_flag()
@@ -115,6 +119,5 @@ def load_args():
 if __name__ == "__main__":
     args = load_args()
     conn = Connection(port=3939)
-    informasiPesan = MessageInfo("localhost", 50)
-    klien = Client(conn, server_ip="localhost", server_port=3839, file_path=args.file)
-    klien.three_way_handshake(informasiPesan)
+    klien = Client(conn, server_ip="localhost", server_port=3839, file_path=args.file, clientPort=args.client)
+    klien.run()
