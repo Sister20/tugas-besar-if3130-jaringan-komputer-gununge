@@ -81,7 +81,7 @@ class Client(Node):
                     self.log.success_log("FIN received")
                     # ack ke server
                     ack = Segment()
-                    ack.set_flag([False, False, True])
+                    ack.set_flag([False, True, True])
                     self.connection.send(self.server_ip, self.server_port, ack)
                     self.log.alert_log("Sending ACK FIN")
                     break

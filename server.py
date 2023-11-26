@@ -110,7 +110,7 @@ class Server(Node):
             try:
                 fin, _ = self.connection.listen()
                 bendera_fin = fin.segment.get_flag()
-                if bendera_fin.fin:
+                if bendera_fin.fin and bendera_fin.ack:
                     self.log.success_log("FIN ACK received")
                     break
                 else:
@@ -118,6 +118,7 @@ class Server(Node):
             except Exception as e:
                 self.log.warning_log("Connection timed out")
                 print(e)
+                break
         # Tutup koneksi
         self.log.success_log("Connection closed")
         self.connection.close()
