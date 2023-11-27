@@ -2,13 +2,7 @@ import argparse
 import socket
 import os
 
-from lib.Connection import Connection
-from lib.Node import Node
-from lib.Segment import Segment
-from lib.Constant import *
-from lib.Utils import *
-from lib.Logger import Logger
-
+from lib import *
 
 class Server(Node):
     def __init__(self, connection: Connection, file_path: str):

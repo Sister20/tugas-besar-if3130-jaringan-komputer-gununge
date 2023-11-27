@@ -1,11 +1,7 @@
 import argparse
 import socket
-from lib.Node import Node
-from lib.Connection import Connection
-from lib.Segment import Segment
-from lib.Constant import *
-from lib.Utils import *
-from lib.Logger import Logger
+
+from lib import *
 
 
 class Client(Node):
