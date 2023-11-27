@@ -14,46 +14,53 @@ class Client(Node):
         self.file = []
         self.log = Logger("Client")
         self.buffer_size = 1024
+        self.segment = Segment()
 
     def run(self):
         self.three_way_handshake()
         self.listen_file()
 
-    def handleMessageInfo(segment: Segment):
-        pass
-
     def three_way_handshake(self):
-        # Client kirim SYN
-        syn = Segment()
-        syn.set_flag([True, False, False])
-        self.connection.send(self.server_ip, self.server_port, syn)
+        # Send initial connection
+        self.log.alert_log(f"[!] Starting 3-way handshake with {self.server_ip}:{self.server_port}")
+        # Initial Connection
+        self.connection.send(self.server_ip, self.server_port, self.segment)
 
-        # Client Terima Syn Ack
         while True:
             try:
-                # self.connection.setTimeout(TIMEOUT_TIME)
-                syn_ack, _ = self.connection.listen()
-                flag = syn_ack.get_flag()
-                if (flag.syn and flag.ack):
-                    self.log.success_log("SYN-ACK Received")
+                msg, _ = self.connection.listen(TIMEOUT_LISTEN)
+                self.segment = msg
+                # Send SYN-ACK
+                if self.segment.is_syn_flag():
+                    self.segment = Segment()
+                    self.segment.set_flag([True, True, False])
+                    self.log.alert_log(f"[!] Sending SYN-ACK to {self.server_ip}:{self.server_port}")
+                    self.connection.send(ip_remote=self.server_ip, port_remote=self.server_port, message=self.segment)
+                # Resend SYN-ACK
+                elif self.segment.is_syn_ack_flag():
+                    self.log.alert_log(f'[!] Resending SYN-ACK to {self.server_ip}:{self.server_port}')
+                    self.connection.send(ip_remote=self.server_ip, port_remote=self.server_port, message=self.segment)
+                # Complete
+                elif self.segment.is_ack_flag():
+                    self.log.alert_log(f"[!] ACK received from {self.server_ip}:{self.server_port}")
                     break
+                # Received a segment with no flag (file)
                 else:
-                    self.log.warning_log("Not SYN-ACK")
-                    return False
-
+                    self.log.warning_log(f"[!] Received a segment with no flag (file), resetting connection...")
+                    # Send SYN-ACK
+                    self.segment = Segment()
+                    self.segment.set_flag([True, True, False])
+                    self.log.alert_log(f"[!] Sending SYN-ACK to {self.server_ip}:{self.server_port}")
+                    self.connection.send(ip_remote=self.server_ip, port_remote=self.server_port, message=self.segment)
             except socket.timeout:
-                self.log.alert_log("Connection timed out")
-
-        # Client kirim ACK
-        try:
-            ack = Segment()
-            ack.set_flag([False, True, False])
-            # self.connection.setTimeout(TIMEOUT_TIME)
-            self.connection.send(self.server_ip, self.server_port, ack)
-        except socket.timeout:
-            self.log.alert_log("Connection timed out")
-            return False
-        return True
+                if self.segment.is_syn_ack_flag():
+                    self.log.warning_log("[!] [TIMEOUT] ACK Response Timed out, retrying...")
+                    self.connection.send(ip_remote=self.server_ip, port_remote=self.server_port, message=self.segment)
+                else:
+                    self.log.warning_log("[!] [TIMEOUT] SYN Response Timed out")
+            except Exception as e:
+                self.log.warning_log(f"[!] Error: {e}")
+                return
 
     def listen_file(self):
         N = WINDOW_SIZE
@@ -63,7 +70,6 @@ class Client(Node):
 
         # Terima file, pengulangan hingga file selesai
         while True:
-            # self.connection.setTimeout(TIMEOUT_TIME)
             try:
                 self.log.alert_log("Receiving file...")
                 file_segment, _ = self.connection.listen()
@@ -71,6 +77,8 @@ class Client(Node):
                 Sn = file_segment.get_header()['seqNumber']
                 self.log.alert_log(f"Receiving segment {Sn}")
                 flag = file_segment.get_flag()
+
+                # if in the last send FIN ACK and break
 
                 if (Sn == METADATA_SEQ):
                     self.log.success_log("Metadata received")
@@ -91,7 +99,7 @@ class Client(Node):
                     # ack ke server
                     ack = Segment()
                     ack.set_flag([False, True, True])
-                    self.connection.send(self.server_ip, self.server_port, ack)
+                    self.connection.send(ip_remote=self.server_ip, port_remote=self.server_port, message=ack)
                     self.log.alert_log("Sending ACK FIN")
                     break
 
@@ -109,17 +117,22 @@ class Client(Node):
                     ack.set_flag([False, True, False])
                     ack.set_ack_number(Sn)
 
-                    self.connection.send(self.server_ip, self.server_port, ack)
+                    self.connection.send(ip_remote=self.server_ip, port_remote=self.server_port, message=ack)
                     self.log.alert_log(f"Sending ACK {Sn}")
                 else:
                     if (Rn - Sn >= N):
-                        self.log.warning_log(
-                            f"Segment {Sn} is out of window, Resending ACK {Rn}")
-                        self.connection.send(
-                            self.server_ip, self.server_port, ack)
+                        self.log.warning_log(f"Segment {Sn} is out of window, Resending ACK {Rn}")
+                        self.connection.send(ip_remote=self.server_ip, port_remote=self.server_port, message=ack)
                     else:
-                        self.log.warning_log(
-                            f'Segment {Sn} is refused, expected {Rn}')
+                        self.log.warning_log(f'Segment {Sn} is refused, expected {Rn}')
+                        ack = Segment()
+                        ack.set_flag([False, True, False])
+                        ack.set_ack_number(Rn)
+                        self.connection.send(ip_remote=self.server_ip, port_remote=self.server_port, message=ack)
+                        self.log.alert_log(f"Sending ACK {Rn}")
+                        
+            except socket.timeout:
+                self.log.warning_log("[!] [TIMEOUT] Response Timed out, retrying...")
 
             except Exception as e:
                 self.log.warning_log(e)
