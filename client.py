@@ -64,6 +64,7 @@ class Client(Node):
         N = WINDOW_SIZE
         Rn = 0
         Sn = 0
+        METADATA_SEQ = -1
 
         # Terima file, pengulangan hingga file selesai
         while True:
@@ -75,9 +76,22 @@ class Client(Node):
                 Sn = file_segment.segment.get_header()['seqNumber']
                 self.log.alert_log(f"Receiving segment {Sn}")
                 flag = file_segment.segment.get_flag()
+                
+                if (Sn == METADATA_SEQ):
+                    self.log.success_log("Metadata received")
+                    self.log.alert_log("Sending ACK Metadata")
+                    ack = Segment()
+                    ack.set_flag([False, True, False])
+                    ack.set_ack_number(Sn)
+                    self.connection.send(self.server_ip, self.server_port, ack)
+                    self.log.alert_log(f"Sending ACK {Sn}")
+                    self.file_path = file_segment.segment.get_data().decode()
+                    self.log.alert_log(f"File path: {self.file_path}")
+                    METADATA_SEQ -= 1
+                    continue
 
                 # Jika FIN, maka kirim FIN ACK
-                if flag.fin:
+                elif flag.fin:
                     self.log.success_log("FIN received")
                     # ack ke server
                     ack = Segment()

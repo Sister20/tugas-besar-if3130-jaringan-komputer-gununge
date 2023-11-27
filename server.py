@@ -1,4 +1,5 @@
 import argparse
+import os
 import socket
 
 from lib.Connection import Connection
@@ -17,6 +18,8 @@ class Server(Node):
         self.port_clients = []
         self.file_segment = breakdown_file(self.file)
         self.log = Logger("Server")
+        self.file_name, self.file_extension = os.path.splitext(os.path.basename(file_path))
+        print(self.file_name, self.file_extension)
 
     def run(self):
         # three way handshake and send file
@@ -71,20 +74,32 @@ class Server(Node):
         Sm = N - 1
         SegmentCount = len(self.file_segment)
         self.log.alert_log(f"Segment count: {SegmentCount}")
+        isMetaData = True
+        METADATA_SEQ = -1
 
         while True:
-            # Kirim segmen jika dan hanya jika Sb <= Rn < Sm
-            while (Sb <= Rn <= Sm and Rn < SegmentCount):
+            if (isMetaData):
                 segment = Segment()
-                segment.set_seq_number(Rn)
-                if Rn >= len(self.file_segment):
-                    break
-                segment.set_data(self.file_segment[Rn])
+                segment.set_seq_number(METADATA_SEQ)
+                segment.set_data(self.file_name.encode() + self.file_extension.encode())
                 self.connection.send(ip_client, port_client, segment)
-                self.log.alert_log(f"Sending segment {Rn}/{SegmentCount - 1}")
-                Rn += 1
-            # Terima ACK
-            self.connection.setTimeout(TIMEOUT_TIME)
+                self.log.alert_log(f"Sending segment {METADATA_SEQ}/{SegmentCount - 1}")
+                isMetaData = False
+            
+            elif (not isMetaData):
+                # Kirim segmen jika dan hanya jika Sb <= Rn < Sm
+                while (Sb <= Rn <= Sm and Rn < SegmentCount):
+                    segment = Segment()
+                    segment.set_seq_number(Rn)
+                    if Rn >= len(self.file_segment):
+                        break
+                    segment.set_data(self.file_segment[Rn])
+                    self.connection.send(ip_client, port_client, segment)
+                    self.log.alert_log(f"Sending segment {Rn}/{SegmentCount - 1}")
+                    Rn += 1
+                # Terima ACK
+                self.connection.setTimeout(TIMEOUT_TIME)
+            
             try:
                 ack, _ = self.connection.listen()
                 ack_number = ack.segment.get_header()['ackNumber']
