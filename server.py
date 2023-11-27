@@ -1,6 +1,6 @@
 import argparse
-import os
 import socket
+import os
 
 from lib.Connection import Connection
 from lib.Node import Node
@@ -18,8 +18,8 @@ class Server(Node):
         self.port_clients = []
         self.file_segment = breakdown_file(self.file)
         self.log = Logger("Server")
-        self.file_name, self.file_extension = os.path.splitext(os.path.basename(file_path))
-        print(self.file_name, self.file_extension)
+        self.file_name, self.file_extension = os.path.splitext(
+            os.path.basename(file_path))
 
     def run(self):
         # three way handshake and send file
@@ -30,11 +30,10 @@ class Server(Node):
         return "asdasdasdas"
 
     def three_way_handshake(self):
-        ip_client = None
         while True:
-            syn, _ = self.connection.listen()
-            bendera_syn = syn.segment.get_flag()
-            self.port_clients = syn.getPort()
+            syn, addr = self.connection.listen()
+            bendera_syn = syn.get_flag()
+            self.port_clients = addr
             if bendera_syn.syn:
                 self.log.success_log("SYN received")
                 break
@@ -52,7 +51,7 @@ class Server(Node):
             try:
                 self.connection.setTimeout(TIMEOUT_TIME)
                 ack, _ = self.connection.listen()
-                benderack = ack.segment.get_flag()
+                benderack = ack.get_flag()
                 if (benderack.ack and not benderack.syn and not benderack.fin):
                     self.log.success_log("ACK received")
                     self.log.alert_log("Sending file...")
@@ -85,9 +84,8 @@ class Server(Node):
                 self.connection.send(ip_client, port_client, segment)
                 self.log.alert_log(f"Sending segment {METADATA_SEQ}/{SegmentCount - 1}")
                 isMetaData = False
-            
-            elif (not isMetaData):
-                # Kirim segmen jika dan hanya jika Sb <= Rn < Sm
+            # Kirim segmen jika dan hanya jika Sb <= Rn < Sm
+            else:
                 while (Sb <= Rn <= Sm and Rn < SegmentCount):
                     segment = Segment()
                     segment.set_seq_number(Rn)
@@ -99,10 +97,9 @@ class Server(Node):
                     Rn += 1
                 # Terima ACK
                 self.connection.setTimeout(TIMEOUT_TIME)
-            
             try:
                 ack, _ = self.connection.listen()
-                ack_number = ack.segment.get_header()['ackNumber']
+                ack_number = ack.get_header()['ackNumber']
                 self.log.success_log(f"ACK {ack_number} received")
                 if ack_number == SegmentCount - 1:
                     break
@@ -124,7 +121,7 @@ class Server(Node):
         while True:
             try:
                 fin, _ = self.connection.listen()
-                bendera_fin = fin.segment.get_flag()
+                bendera_fin = fin.get_flag()
                 if bendera_fin.fin and bendera_fin.ack:
                     self.log.success_log("FIN ACK received")
                     break
@@ -132,7 +129,6 @@ class Server(Node):
                     self.log.warning_log("Not FIN ACK")
             except Exception as e:
                 self.log.warning_log("Connection timed out")
-                print(e)
                 break
         # Tutup koneksi
         self.log.success_log("Connection closed")
@@ -141,9 +137,10 @@ class Server(Node):
 
 def load_args():
     arg = argparse.ArgumentParser()
-    arg.add_argument('-p', '--port', type=int,default=5000, help='port to listen on')
-    arg.add_argument('-f', '--file', type=str,default='input.txt', help='path to file input')
-    arg.add_argument('-par', '--parallel', type=int,default=0, help='turn on/off parallel mode')
+    arg.add_argument('-i', '--ip', type=str, default='localhost', help='ip to listen on')
+    arg.add_argument('-p', '--port', type=int, default=1337, help='port to listen on')
+    arg.add_argument('-f', '--file', type=str, default='input.txt', help='path to file input')
+    arg.add_argument('-par', '--parallel', type=int, default=0, help='turn on/off parallel mode')
     args = arg.parse_args()
     return args
 
@@ -151,6 +148,6 @@ def load_args():
 if __name__ == '__main__':
     while True:
         args = load_args()
-        conn = Connection(port=3839)
-        server = Server(conn, file_path=args.file)
+        server = Server(Connection(ip=args.ip, port=args.port),
+                        file_path=args.file)
         server.run()

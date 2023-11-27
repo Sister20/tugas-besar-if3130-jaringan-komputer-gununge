@@ -1,6 +1,4 @@
-from typing import Callable
 import socket
-from .MessageInfo import MessageInfo
 from .Segment import Segment
 
 
@@ -17,10 +15,10 @@ class Connection:
 
     def listen(self):
         data, addr = self.__socket.recvfrom(32768)
-        message = MessageInfo(data, addr)
-        message.segment.set_from_bytes(data)
+        message = Segment()
+        message.set_from_bytes(data)
         # check checksum
-        if not message.segment.valid_checksum():
+        if not message.valid_checksum():
             raise Exception("Checksum not valid")
         if self.__handler:
             self.__handler(message)
@@ -29,18 +27,10 @@ class Connection:
     def close(self):
         self.__socket.close()
 
-    def register_handler(self, handler: Callable[[MessageInfo], None]):
-        self.__handler = handler
-
-    def notify(self, message: MessageInfo):
-        if self.__handler:
-            self.__handler(message)
-
     def setTimeout(self, timeout: int):
         self.__socket.settimeout(timeout)
 
 
 if __name__ == "__main__":
     conn = Connection()
-    conn.register_handler(lambda msg: print(msg))
     conn.listen()
