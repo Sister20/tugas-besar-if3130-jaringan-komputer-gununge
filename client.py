@@ -132,7 +132,8 @@ class Client(Node):
 
 def load_args():
     arg = argparse.ArgumentParser()
-    arg.add_argument('-c', '--client', type=int, default=7331, help='port the client is on')
+    arg.add_argument('-ci', '--clientip', type=str, default='localhost', help='ip the client is on')
+    arg.add_argument('-cp', '--clientport', type=int, default=7331, help='port the client is on')
     arg.add_argument('-i', '--ip', type=str, default='localhost', help='ip to listen on')
     arg.add_argument('-p', '--port', type=int, default=1337, help='port to listen on')
     arg.add_argument('-f', '--folder', type=str, default='output', help='path to folder output')
@@ -142,6 +143,6 @@ def load_args():
 
 if __name__ == "__main__":
     args = load_args()
-    klien = Client(Connection(port=args.client), server_ip=args.ip,
-                   server_port=args.port, folder_path=args.folder)
+    print(args.clientip, args.clientport)
+    klien = Client(Connection(ip = args.clientip, port=args.clientport), server_ip=args.ip, server_port=args.port, folder_path=args.folder)
     klien.run()

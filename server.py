@@ -148,6 +148,5 @@ def load_args():
 if __name__ == '__main__':
     while True:
         args = load_args()
-        server = Server(Connection(ip=args.ip, port=args.port),
-                        file_path=args.file)
+        server = Server(Connection(ip=args.ip, port=args.port),file_path=args.file)
         server.run()
