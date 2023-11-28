@@ -65,6 +65,8 @@ class Server(Node):
                 except socket.timeout:
                     self.log.alert_log("[!] Timeout, no more clients connected")
                     return
+                except ValueError:
+                    self.log.warning_log(f"[!] Invalid message received, ignoring...")
                 except Exception as e:
                     self.log.warning_log(f"[!] Error: {e}")
                     exit()
@@ -93,7 +95,7 @@ class Server(Node):
                 break
             except Exception as e:
                 self.log.warning_log(f"[!] Error: {e}")
-                break
+                # break
     
     def get_response(self, ip_client: str, port_client: int):
         if (self.parallel):
@@ -109,11 +111,11 @@ class Server(Node):
     def start_connection(self, ip: str = None, port: int = None):
         if not self.parallel:
             for client in self.client_list:
-                self.three_way_handshake(ip_client=client[0], port_client=client[1])
-                self.send_file(ip_client=client[0], port_client=client[1])
+                if self.three_way_handshake(ip_client=client[0], port_client=client[1]):
+                    self.send_file(ip_client=client[0], port_client=client[1])
         else:
-            self.three_way_handshake(ip_client=ip, port_client=port)
-            self.send_file(ip_client=ip, port_client=port)
+            if self.three_way_handshake(ip_client=ip, port_client=port):
+                self.send_file(ip_client=ip, port_client=port)
 
     def three_way_handshake(self, ip_client: str, port_client: int):
         self.log.alert_log(f"[!] Starting 3-way handshake with {ip_client}:{port_client}")
@@ -130,6 +132,7 @@ class Server(Node):
 
                 except socket.timeout:
                     self.log.warning_log("[!] [TIMEOUT] SYN Timed out, retrying...")
+                    return False
             # Send ACK
             elif self.segment.is_syn_ack_flag():
                 self.log.alert_log(f"[!] SYN-ACK received from {ip_client}:{port_client}")
@@ -140,8 +143,9 @@ class Server(Node):
                 break
             else:
                 self.log.warning_log("[!] Not SYN or SYN-ACK, client already connected")
-                break
+                return False
         self.log.success_log(f"[!] 3-way handshake with {ip_client}:{port_client} complete")
+        return True
 
     # KIRIM FILE
     def send_file(self, ip_client: str, port_client: int):
@@ -210,8 +214,8 @@ class Server(Node):
                 Rn = Sb
                 self.log.warning_log(f"[!] [TIMEOUT] ACK Response Timed out with {ip_client}:{port_client}")
             except Exception as e:
-                self.log.warning_log(f"[!] Error: {e}")
-                return
+                self.log.warning_log(f"[!] Errorsss: {e}")
+                # return
 
     def close_connection(self, ip_client: str, port_client: int):
         # Kirim FIN

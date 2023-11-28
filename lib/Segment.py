@@ -82,11 +82,11 @@ class Segment:
             'seqNumber': header_tup[0],
             'ackNumber': header_tup[1],
             'flag': header_tup[2],
-            'checksum': header_tup[4]
+            'checksum': header_tup[4] & 0xffff
         }
         self.header = header
         self.data = src[12:]
-        self.update_checksum()
+        # self.update_checksum()
 
     def get_bytes(self) -> bytes:
         # Convert this object to pure bytes
@@ -118,8 +118,9 @@ class Segment:
         return ~sum & 0xffff
 
     def update_checksum(self):
-        # Update checksum value
-        self.header['checksum'] = self.calculate_checksum()
+        checksum = self.calculate_checksum()
+        checksum &= 0xffff
+        self.header['checksum'] = checksum
 
     def is_syn_flag(self) -> bool:
         # Check if this segment has only SYN flag
