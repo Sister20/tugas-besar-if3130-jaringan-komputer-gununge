@@ -22,7 +22,8 @@ class Server(Node):
 
         # prompt user for parallel mode
         while True:
-            parallel = input(f'{"\033[93m"}[Server]{"\033[0m"} {"Turn on parallel mode? (y/n): "}')
+            ALERT = "\033[93m[Server]\033[0m Turn on parallel mode? (y/n): "
+            parallel = input(ALERT)
             if parallel.lower() == 'y':
                 self.parallel = True
                 break
@@ -53,7 +54,8 @@ class Server(Node):
                     self.log.alert_log(f"[!] Total client connected: {len(self.client_list)}")
                     # input to listen for more clients
                     while True:
-                        prompt = input(f'{"\033[93m"}[Server]{"\033[0m"} {"Listen for more clients? (y/n): "}')
+                        ALERT = "\033[93m[Server]\033[0m Listen for more clients? (y/n): "
+                        prompt = input(ALERT)
                         if prompt.lower() == 'y':
                             break
                         elif prompt.lower() == 'n':
