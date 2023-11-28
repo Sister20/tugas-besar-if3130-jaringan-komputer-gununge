@@ -67,6 +67,7 @@ class Client(Node):
         Rn = 0
         Sn = 0
         METADATA_SEQ = -1
+        hamming = Hamming()
 
         # Terima file, pengulangan hingga file selesai
         while True:
@@ -79,7 +80,7 @@ class Client(Node):
                 # if in the last send FIN ACK and break
 
                 if (Sn == METADATA_SEQ):
-                    self.file_path = file_segment.get_data().decode()
+                    self.file_path = (Utils.decode_metadata(file_segment.get_data())).decode('UTF-8')
                     self.log.success_log(f"[!] Receiving file {self.file_path}")
                     ack = Segment()
                     ack.set_flag([False, True, False])
@@ -97,15 +98,20 @@ class Client(Node):
                     ack.set_flag([False, True, True])
                     self.connection.send(ip_remote=self.server_ip, port_remote=self.server_port, message=ack)
                     self.log.alert_log(f"[!] Sending ACK FIN to {self.server_ip}:{self.server_port}") 
+                    filePath = self.folder_path + '/' + self.file_path
+                    md5 = Utils.printmd5(filePath)
+                    self.log.success_log(f"MD5 Hash: {md5}")
                     break
 
                 elif Sn == Rn:
                     data = file_segment.get_data()
                     if data:
+                        decodedData = hamming.breakdownBytes(data)
                         file = open(self.folder_path + '/' +
                                     self.file_path, 'ab')
                         file.seek(Sn)
-                        file.write(data)
+                        file.write(decodedData)
+                        file.close()
                         Rn += 1
 
                     # Kirim ACK
