@@ -216,7 +216,9 @@ class Server(Node):
             if (isMetaData):
                 segment = Segment()
                 segment.set_seq_number(METADATA_SEQ)
-                segment.set_data(self.file_name.encode() + self.file_extension.encode())
+                completeFileName = (self.file_name + self.file_extension).encode()
+                encodedMetadata = Utils.encode_metadata(completeFileName)
+                segment.set_data(encodedMetadata)
                 self.connection.send(ip_client, port_client, segment)
                 self.log.alert_log(f"[!] Sending Metadata to {ip_client}:{port_client}")
                 isMetaData = False
@@ -253,11 +255,14 @@ class Server(Node):
                     continue
                 ack_number = msg.get_header()['ackNumber']
                 self.log.success_log(f"[!] ACK {ack_number} received from {ip_client}:{port_client}")
-                if ack_number >= SegmentCount - 1:
+                if ack_number == SegmentCount - 1:
                     self.close_connection(ip_client, port_client)
                     return
-                Sb = ack_number
-                Sm = Sb + (N - 1)
+                if ack_number > SegmentCount - 1 or ack_number < -1:
+                    continue
+                else:
+                    Sb = ack_number
+                    Sm = Sb + (N - 1)
             except socket.timeout:
                 Rn = Sb
                 self.log.warning_log(f"[!] [TIMEOUT] ACK Response Timed out with {ip_client}:{port_client}")
@@ -287,6 +292,9 @@ class Server(Node):
         # Tutup koneksi
         if (self.parallel):
             self.parallel_client_list.pop((ip_client, port_client))
+
+        md5 = Utils.printmd5(self.file_path)
+        self.log.success_log(f"MD5 Hash: {md5}")
         self.log.success_log(f'Connection with {ip_client}:{port_client} closed')
 
 
