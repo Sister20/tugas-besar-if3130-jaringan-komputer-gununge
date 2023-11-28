@@ -1,5 +1,6 @@
 from .Constant import *
 from .Hamming import *
+import hashlib
 
 def breakdown_file(data: bytes) -> list:
     list_data = []
@@ -33,3 +34,9 @@ def decode_metadata(data: bytes) -> bytes:
     hamming = Hamming()
     decodedData = hamming.breakdownBytes(data)
     return decodedData
+
+def printmd5(data: str):
+    with open(data, 'rb') as file_obj:
+        file_contents = file_obj.read()
+        md5_hash = hashlib.md5(file_contents).hexdigest()
+        return md5_hash

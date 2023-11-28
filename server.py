@@ -160,7 +160,6 @@ class Server(Node):
                 segment = Segment()
                 segment.set_seq_number(METADATA_SEQ)
                 completeFileName = (self.file_name + self.file_extension).encode()
-                print(completeFileName)
                 encodedMetadata = Utils.encode_metadata(completeFileName)
                 segment.set_data(encodedMetadata)
                 self.connection.send(ip_client, port_client, segment)
@@ -236,6 +235,9 @@ class Server(Node):
         # Tutup koneksi
         if (self.parallel):
             self.parallel_client_list.pop((ip_client, port_client))
+
+        md5 = Utils.printmd5(self.file_path)
+        self.log.success_log(f"MD5 Hash: {md5}")
         self.log.success_log(f'Connection with {ip_client}:{port_client} closed')
 
 

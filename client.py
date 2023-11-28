@@ -98,6 +98,9 @@ class Client(Node):
                     ack.set_flag([False, True, True])
                     self.connection.send(ip_remote=self.server_ip, port_remote=self.server_port, message=ack)
                     self.log.alert_log(f"[!] Sending ACK FIN to {self.server_ip}:{self.server_port}") 
+                    filePath = self.folder_path + '/' + self.file_path
+                    md5 = Utils.printmd5(filePath)
+                    self.log.success_log(f"MD5 Hash: {md5}")
                     break
 
                 elif Sn == Rn:
@@ -108,6 +111,7 @@ class Client(Node):
                                     self.file_path, 'ab')
                         file.seek(Sn)
                         file.write(decodedData)
+                        file.close()
                         Rn += 1
 
                     # Kirim ACK
