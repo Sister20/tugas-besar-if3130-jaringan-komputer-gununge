@@ -2,7 +2,6 @@ import argparse
 import socket
 import os
 import threading
-import multiprocessing
 import time
 from typing import Dict, List, Tuple
 
@@ -89,10 +88,10 @@ class Server(Node):
                     
             except socket.timeout:
                 self.log.alert_log("[!] Timeout, no more clients connected")
-                return
+                break
             except Exception as e:
                 self.log.warning_log(f"[!] Error: {e}")
-                exit()
+                break
     
     def get_response(self, ip_client: str, port_client: int):
         if (self.parallel):
@@ -150,7 +149,7 @@ class Server(Node):
         Sb = 0
         Sm = N - 1
         SegmentCount = len(self.file_segment)
-        self.log.alert_log(f"Segment count: {SegmentCount}")
+        self.log.alert_log(f"[!] Segment count: {SegmentCount}")
         isMetaData = True
         METADATA_SEQ = -1
 
@@ -160,7 +159,7 @@ class Server(Node):
                 segment.set_seq_number(METADATA_SEQ)
                 segment.set_data(self.file_name.encode() + self.file_extension.encode())
                 self.connection.send(ip_client, port_client, segment)
-                self.log.alert_log(f"Sending segment {METADATA_SEQ}/{SegmentCount - 1} to {ip_client}:{port_client}")
+                self.log.alert_log(f"[!] Sending Metadata to {ip_client}:{port_client}")
                 isMetaData = False
             else:
                 while (Sb <= Rn <= Sm and Rn < SegmentCount):
@@ -170,15 +169,18 @@ class Server(Node):
                         break
                     segment.set_data(self.file_segment[Rn])
                     self.connection.send(ip_client, port_client, segment)
-                    # self.log.alert_log(f"Sending segment {Rn}/{SegmentCount - 1} to {ip_client}:{port_client}")
+                    self.log.alert_log(f"[!] Sending segment {Rn}/{SegmentCount - 1} to {ip_client}:{port_client}")
                     Rn += 1
             try:
                 msg, addr = self.connection.listen()
                 if msg.is_syn_ack_flag():
                     # Reset connection
-                    self.log.warning_log(f'[!] Resetting connection with {ip_client}:{port_client}')
-                    self.three_way_handshake(ip_client, port_client)
-                    self.send_file(ip_client, port_client)
+                    try:
+                        self.log.warning_log(f'[!] Resetting connection with {ip_client}:{port_client}')
+                        self.three_way_handshake(ip_client, port_client)
+                        self.send_file(ip_client, port_client)
+                    except Exception as e:
+                        self.log.warning_log(f"[!] Error: {e}")
                     return
                 if addr != (ip_client, port_client):
                     # if the address haven't been registered in the client list, register it and start connection
@@ -191,17 +193,18 @@ class Server(Node):
                         self.log.warning_log(f"[!] Received message from unknown address {addr}, ignoring...")
                     continue
                 ack_number = msg.get_header()['ackNumber']
-                # self.log.success_log(f"ACK {ack_number} received")
-                # self.log.success_log(f"Segment count: segment {SegmentCount - 1}")
+                self.log.success_log(f"[!] ACK {ack_number} received from {ip_client}:{port_client}")
                 if ack_number >= SegmentCount - 1:
-                    self.log.success_log("All segments received")
                     self.close_connection(ip_client, port_client)
                     return
                 Sb = ack_number
                 Sm = Sb + (N - 1)
             except socket.timeout:
                 Rn = Sb
-                self.log.warning_log("Connection timed out")
+                self.log.warning_log(f"[!] [TIMEOUT] ACK Response Timed out with {ip_client}:{port_client}")
+            except Exception as e:
+                self.log.warning_log(f"[!] Error: {e}")
+                return
 
     def close_connection(self, ip_client: str, port_client: int):
         # Kirim FIN
@@ -215,16 +218,16 @@ class Server(Node):
                 fin, _ = self.connection.listen()
                 bendera_fin = fin.get_flag()
                 if bendera_fin.fin and bendera_fin.ack:
-                    self.log.success_log("FIN ACK received")
-                    if (self.parallel):
-                        del self.parallel_client_list[(ip_client, port_client)]
+                    self.log.success_log(f"[!] FIN ACK received from {ip_client}:{port_client}")
                     break
                 else:
-                    self.log.warning_log("Not FIN ACK")
+                    self.log.warning_log("[!] Not FIN ACK")
             except Exception as e:
-                self.log.warning_log("Connection timed out")
+                self.log.warning_log("[!] Connection timed out while waiting for FIN ACK")
                 break
         # Tutup koneksi
+        if (self.parallel):
+            self.parallel_client_list.pop((ip_client, port_client))
         self.log.success_log(f'Connection with {ip_client}:{port_client} closed')
 
 

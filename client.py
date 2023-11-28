@@ -79,25 +79,24 @@ class Client(Node):
                 # if in the last send FIN ACK and break
 
                 if (Sn == METADATA_SEQ):
-                    self.log.success_log("Metadata received")
-                    self.log.alert_log("Sending ACK Metadata")
+                    self.file_path = file_segment.get_data().decode()
+                    self.log.success_log(f"[!] Receiving file {self.file_path}")
                     ack = Segment()
                     ack.set_flag([False, True, False])
                     ack.set_ack_number(Sn)
+                    self.log.alert_log(f"[!] Sending metadata ACK to {self.server_ip}:{self.server_port}")
                     self.connection.send(self.server_ip, self.server_port, ack)
-                    self.file_path = file_segment.get_data().decode()
-                    self.log.alert_log(f"File path: {self.file_path}")
                     METADATA_SEQ -= 1
                     continue
 
                 # Jika FIN, maka kirim FIN ACK
                 elif flag.fin:
-                    self.log.success_log("FIN received")
+                    self.log.success_log(f"[!] FIN received from {self.server_ip}:{self.server_port}")
                     # ack ke server
                     ack = Segment()
                     ack.set_flag([False, True, True])
                     self.connection.send(ip_remote=self.server_ip, port_remote=self.server_port, message=ack)
-                    self.log.alert_log(f"Sending ACK FIN to {self.server_ip}:{self.server_port}") 
+                    self.log.alert_log(f"[!] Sending ACK FIN to {self.server_ip}:{self.server_port}") 
                     break
 
                 elif Sn == Rn:
@@ -115,18 +114,10 @@ class Client(Node):
                     ack.set_ack_number(Sn)
 
                     self.connection.send(ip_remote=self.server_ip, port_remote=self.server_port, message=ack)
-                    self.log.alert_log(f"Sending ACK {Sn} to {self.server_ip}:{self.server_port}")
+                    self.log.alert_log(f"[!] Sending ACK {Sn} to {self.server_ip}:{self.server_port}")
                 else:
-                    if (Rn - Sn >= N):
-                        self.log.warning_log(f"Segment {Sn} is out of window, Resending ACK {Rn}")
-                        self.connection.send(ip_remote=self.server_ip, port_remote=self.server_port, message=ack)
-                    else:
-                        self.log.warning_log(f'Segment {Sn} is refused, expected {Rn}')
-                        ack = Segment()
-                        ack.set_flag([False, True, False])
-                        ack.set_ack_number(Rn)
-                        self.connection.send(ip_remote=self.server_ip, port_remote=self.server_port, message=ack)
-                        self.log.alert_log(f"Sending ACK {Rn} to {self.server_ip}:{self.server_port}")
+                    self.log.warning_log(f'[!] Segment {Sn} is refused, expected {Rn}, timing out...')
+                    self.connection.send(ip_remote=self.server_ip, port_remote=self.server_port, message=ack)
                         
             except socket.timeout:
                 self.log.warning_log("[!] [TIMEOUT] Response Timed out, retrying...")
