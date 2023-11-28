@@ -120,6 +120,26 @@ class Segment:
     def update_checksum(self):
         # Update checksum value
         self.header['checksum'] = self.calculate_checksum()
+
+    def is_syn_flag(self) -> bool:
+        # Check if this segment has only SYN flag
+        return self.header['flag'] == SYN_FLAG
+    
+    def is_ack_flag(self) -> bool:
+        # Check if this segment has only ACK flag
+        return self.header['flag'] == ACK_FLAG
+    
+    def is_fin_flag(self) -> bool:
+        # Check if this segment has only FIN flag
+        return self.header['flag'] == FIN_FLAG
+    
+    def is_syn_ack_flag(self) -> bool:
+        # Check if this segment has SYN and ACK flag
+        return self.header['flag'] == SYN_FLAG | ACK_FLAG
+    
+    def is_fin_ack_flag(self) -> bool:
+        # Check if this segment has ACK and FIN flag
+        return self.header['flag'] == ACK_FLAG | FIN_FLAG
         
 if __name__ == '__main__':
     segment = Segment()

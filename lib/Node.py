@@ -5,7 +5,3 @@ class Node(ABC):
     @abstractmethod
     def run():
         pass
-
-    @abstractmethod
-    def handleMessageInfo(segment: Segment):
-        pass

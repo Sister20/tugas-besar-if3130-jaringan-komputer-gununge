@@ -10,7 +10,6 @@ def breakdown_file(data: bytes) -> list:
         else:
             list_data.append(data)
             data = b''
-    print("Breakdown file done")
     return list_data
 
 def merge_file(list_data: list) -> bytes:
