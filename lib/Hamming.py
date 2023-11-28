@@ -96,7 +96,9 @@ class Hamming:
         if correction != 0:
             bit_position_to_flip =  correction - 1
             finalResult = data ^ (1 << bit_position_to_flip)
-            self.log.warning_log("Error detected at bit position", bit_position_to_flip)
+            self.log.warning_log(f"Error detected at bit position {bit_position_to_flip}")
+            print("Before correction: ", bin(data))
+            print("After correction: ", bin(finalResult))
             
         res = self.removeParityBits(finalResult, 7)
         return res

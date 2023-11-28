@@ -80,7 +80,7 @@ class Client(Node):
                 # if in the last send FIN ACK and break
 
                 if (Sn == METADATA_SEQ):
-                    self.file_path = file_segment.get_data().decode()
+                    self.file_path = (Utils.decode_metadata(file_segment.get_data())).decode('UTF-8')
                     self.log.success_log(f"[!] Receiving file {self.file_path}")
                     ack = Segment()
                     ack.set_flag([False, True, False])

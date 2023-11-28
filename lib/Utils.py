@@ -23,3 +23,13 @@ def merge_file(list_data: list) -> bytes:
     for i in list_data:
         data += i
     return data
+
+def encode_metadata(data: bytes) -> bytes:
+    hamming = Hamming()
+    encodedData = hamming.breakdownDataToBytes(data)
+    return encodedData
+
+def decode_metadata(data: bytes) -> bytes:
+    hamming = Hamming()
+    decodedData = hamming.breakdownBytes(data)
+    return decodedData
