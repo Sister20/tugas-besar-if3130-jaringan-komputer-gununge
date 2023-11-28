@@ -18,6 +18,7 @@ class Client(Node):
         self.buffer_size = 1024
         self.segment = Segment()
         self.gameState = None
+        self.player_number = None
 
     def run(self):
         if (self.three_way_handshake()):
@@ -25,55 +26,56 @@ class Client(Node):
 
     def run_game(self):
         self.three_way_handshake()
+
         while True : 
             # listen for client number
-            client_number, _ = self.connection.listen()
-            self.log.success_log(f"Received segment {client_number.get_header()['seqNumber']} from {self.server_ip}:{self.server_port} with data {client_number.get_data().decode()}")
-            break
-        # initialize game state
-        while True : 
             try:
-                board, _ = self.connection.listen(TIMEOUT_LISTEN)
-                self.gameState = GameState(client_number.get_data().decode(), json.loads(board.get_data().decode()))
-                break
-            except socket.timeout:
-                self.log.warning_log("[!] [TIMEOUT] Response Timed out, retrying...")
-                continue
-        if (self.gameState.clientNumber == "2"):
-            self.gameState.printBoard()
-        while True:
-            try:
-                board, _ = self.connection.listen(TIMEOUT_LISTEN)
-                if(not board.is_fin_flag()):
-                    self.log.success_log(f"[!] Your turn")
-                    self.gameState.board = json.loads(board.get_data().decode())
-                    self.gameState.printBoard()
+                segment_data, _ = self.connection.listen(1)
+                if(segment_data.is_syn_flag and segment_data.get_header()['seqNumber'] == 0):
+                    #inisialisasi
+                    self.log.success_log(f"Received segment {segment_data.get_header()['seqNumber']} from {self.server_ip}:{self.server_port} with data {segment_data.get_data().decode()}")
+                    self.segment = Segment()
+                    self.segment.set_seq_number(0)
+                    self.segment.set_flag([False, True, False])
+                    self.connection.send(self.server_ip, self.server_port, self.segment)
+                    self.player_number = segment_data.get_data().decode()
+                elif (segment_data.is_syn_ack_flag and segment_data.get_header()['seqNumber'] == 1):
+                    # init game state
+                    self.gameState = GameState(self.player_number, json.loads(segment_data.get_data().decode()))
+                    if (self.gameState.clientNumber == '2'):
+                        self.gameState.printBoard()
+                    self.segment = Segment()
+                    self.segment.set_seq_number(1)
+                    self.segment.set_flag([False, True, False])
+                    # print disini
+                    self.connection.send(self.server_ip, self.server_port, self.segment)
+                elif (segment_data.is_syn_ack_flag and segment_data.get_header()['seqNumber'] == 2):
+                    if(self.gameState.clientNumber == self.player_number):
+                        self.gameState.board = json.loads(segment_data.get_data().decode())
+                        self.gameState.printBoard()
 
-                    # input mark
-                    move = self.gameState.input_mark()
-                    seg = Segment()
-                    seg.set_data(json.dumps(move).encode())
-                    self.connection.send(self.server_ip, self.server_port, seg)
-                    # listen for board
-                    board, _ = self.connection.listen(TIMEOUT_LISTEN)
-                    self.gameState.board = json.loads(board.get_data().decode())
+                        move = self.gameState.input_mark()
+                        self.segment = Segment()
+                        self.segment.set_data(json.dumps(move).encode())
+                        self.segment.set_flag([True, True, False])
+                        self.connection.send(self.server_ip, self.server_port, self.segment)
+                elif(segment_data.get_header()['seqNumber'] == 3):
+                    self.gameState.board = json.loads(segment_data.get_data().decode())
                     self.log.success_log("[!] Board Updated")
                     self.gameState.printBoard()
                     self.log.alert_log("[!] Waiting for opponent...")
-                else:
-                    # PRINT THE MESSAGE
-                    print(board.get_data().decode())
+                    self.segment = Segment()
+                    self.segment.set_flag([False, True, False])
+                    self.connection.send(self.server_ip, self.server_port, self.segment)
+                    
+                elif(segment_data.is_fin_flag and segment_data.get_header()['seqNumber'] == 4):
+                    print(segment_data.get_data().decode())
                     break
             except socket.timeout:
-                self.log.warning_log("[!] [TIMEOUT] Response Timed out, retrying...")
-                continue
-            # except Exception as e:
-            #     self.log.warning_log(e)
-            #     break
-
-
-        
-        # Game
+                self.connection.send(self.server_ip, self.server_port, self.segment)
+            except Exception as e:
+                self.log.warning_log(f'[!] Unknown error occured, exiting...')
+                exit()
 
     def three_way_handshake(self):
         # Send initial connection

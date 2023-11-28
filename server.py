@@ -44,48 +44,81 @@ class Server(Node):
                 self.start_connection()
 
     def run_game(self):
+        # Listen for clients
         while len(self.client_list) < 2:
             self.listen_for_clients()
-
         for client in self.client_list:
             self.three_way_handshake(ip_client=client[0], port_client=client[1])
-            seg = Segment()
-            seg.set_seq_number(0)
-            seg.set_data(str(self.client_list.index(client)+1).encode())
-            self.connection.send(client[0], client[1], seg)
+        
+        # Sending initial gamestate
+        i = 0
+        while True:
+            try:
+                # Send SYN
+                client = self.client_list[i]
+                seg = Segment()
+                seg.set_seq_number(0)
+                seg.set_data(str(self.client_list.index(client)+1).encode())
+                seg.set_flag([True, False, False])
+                self.connection.send(client[0], client[1], seg)
+                ack, _ = self.connection.listen()
+                if ack.is_ack_flag():
+                    i += 1
+                if i == 2:
+                    break
+            except socket.timeout:
+                self.log.warning_log("[!] [TIMEOUT] Response Timed out, retrying...")
 
         gm = GameManager(self.client_list[0], self.client_list[1])
-        for client in self.client_list:
-            seg = Segment()
-            seg.set_seq_number(0)
-            seg.set_data(json.dumps(gm.gamestate).encode())
-            self.connection.send(client[0], client[1], seg)
+        
+        # Sending first round state
+        i = 0
+        while True:
+            try: 
+                client = self.client_list[i]
+                seg = Segment()
+                seg.set_seq_number(1)
+                seg.set_data(json.dumps(gm.gamestate).encode())
+                seg.set_flag([True, True, False])
+                self.connection.send(client[0], client[1], seg)
+                ack, _ = self.connection.listen()
+                if (ack.is_ack_flag()):
+                    i += 1
+                if i == 2:
+                    break
+            except socket.timeout:
+                self.log.warning_log("[!] [TIMEOUT] Response Timed out, retrying...")
         
         while (not gm.menang):
             # Step 1 : Kirim current player turn
             seg = Segment()
             board_bytes = json.dumps(gm.gamestate).encode()
             seg.set_data(board_bytes)
-            seg.set_seq_number(gm.pemain)
+            seg.set_seq_number(2)
+            seg.set_flag([True, True, False])
             self.connection.send(self.client_list[gm.pemain-1][0], self.client_list[gm.pemain-1][1], seg)
             # Step 2 : Terima Move
             while True:
                 try:
-                    move, _ = self.connection.listen(TIMEOUT_LISTEN)
-                    gm.setState(json.loads(move.get_data().decode()))
-                    seg = Segment()
-                    seg.set_seq_number(gm.pemain)
-                    seg.set_data(json.dumps(gm.gamestate).encode())
-                    self.connection.send(self.client_list[gm.pemain-1][0], self.client_list[gm.pemain-1][1], seg)
-                    gm.newTurn()
-                    gm.validate()
-                    break
+                    move, (p_ip, p_port) = self.connection.listen(TIMEOUT_LISTEN)
+                    index = self.client_list.index((p_ip, p_port))
+                    if (index + 1 == gm.pemain):
+                        if (move.is_ack_flag()):
+                            break
+                        gm.setState(json.loads(move.get_data().decode()))
+                        seg = Segment()
+                        seg.set_seq_number(3)
+                        seg.set_data(json.dumps(gm.gamestate).encode())
+                        self.connection.send(self.client_list[gm.pemain-1][0], self.client_list[gm.pemain-1][1], seg)
+                        gm.newTurn()
+                        gm.validate()
                 except socket.timeout:
                     self.log.warning_log("[!] [TIMEOUT] Response Timed out, retrying...")
-                    continue
+                    self.connection.send(self.client_list[gm.pemain-1][0], self.client_list[gm.pemain-1][1], seg)
 
         segFin = Segment()
         segFin.set_flag([False, False, True]) 
+        segFin.set_seq_number(4)
         msg = ""
         if(gm.winner == 0 or gm.winner == 3):
             msg = "Draw Game"

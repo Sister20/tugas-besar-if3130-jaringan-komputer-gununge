@@ -4,12 +4,16 @@ class GameState:
         self.board = board        
 
     def printBoard(self):
-        for row in range (3):
-            if row != 2:
-                print(f"   {self.board[row][0]} | {self.board[row][1]} | {self.board[row][2]}   ")
-                print("-------------")
-            else:
-                print(f"   {self.board[row][0]} | {self.board[row][1]} | {self.board[row][2]}   ")
+        row = self.board
+        # fill the empty board with 3 blank spaces
+        row = [[" " + cell + " " if cell != "" else "   " for cell in row[i]] for i in range(3)]
+
+        print(row[0][0] + '|' + row[0][1] + '|' + row[0][2])
+        print('---+---+---')
+        print(row[1][0] + '|' + row[1][1] + '|' + row[1][2])
+        print('---+---+---')
+        print(row[2][0] + '|' + row[2][1] + '|' + row[2][2])
+        
     def input_mark(self):
         row = int(input("Masukkan baris Anda "))
         col = int(input("Masukkan kolom Anda "))
