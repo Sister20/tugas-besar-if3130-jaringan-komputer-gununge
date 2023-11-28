@@ -13,8 +13,8 @@ if __name__ == '__main__':
         choice = input("Enter your choice: ")
         if choice == '1':
             input_file = input("Enter file name: ")
-            ip = input("Enter ip: ")
-            port = input("Enter port: ")
+            ip = input("Enter ip (default = localhost): ")
+            port = input("Enter port (default = 8080): ")
             # paralel = int(input("Enter paralel: "))
             if (not os.path.isfile(input_file)):
                 print("File not found")
@@ -29,10 +29,10 @@ if __name__ == '__main__':
             server = Server(Connection(ip=ip, port=int(port)),file_path=input_file)
             server.run()
         elif choice == '2':
-            client_ip = input("Enter client ip: ")
+            client_ip = input("Enter client ip (default = localhost): ")
             if (client_ip == ''):
                 client_ip = 'localhost'
-            client_port = input("Enter client port: ")
+            client_port = input("Enter client port (default = 6000): ")
             if (client_port == ''):
                 client_port = 6000
             ip = input("Enter ip server: ")

@@ -340,7 +340,6 @@ def load_args():
     arg.add_argument('-i', '--ip', type=str, default='localhost', help='ip to listen on')
     arg.add_argument('-p', '--port', type=int, default=1337, help='port to listen on')
     arg.add_argument('-f', '--file', type=str, default='input.txt', help='path to file input')
-    arg.add_argument('-par', '--parallel', type=int, default=0, help='turn on/off parallel mode')
     arg.add_argument('-g', '--game', type=int, default=0, help='turn on/off game mode')
     args = arg.parse_args()
     return args
