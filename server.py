@@ -126,9 +126,9 @@ class Server(Node):
             msg = f"Player {gm.winner} wins the game"
         
         segFin.set_data(msg.encode())
-
-        for client in self.client_list:
-            self.connection.send(client[0], client[1], segFin)
+        while True:
+            for client in self.client_list:
+                self.connection.send(client[0], client[1], segFin)
         
     def listen_for_clients(self):
         while True:
