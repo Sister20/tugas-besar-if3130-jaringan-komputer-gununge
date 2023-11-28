@@ -1,11 +1,13 @@
 import argparse
+import json
 import socket
 
 from lib import *
+from lib.GameState import GameState
 
 
 class Client(Node):
-    def __init__(self, connection: Connection, server_ip: str, server_port: str, folder_path: str):
+    def __init__(self, connection: Connection, server_ip: str, server_port: str, folder_path: str = None):
         self.connection = connection
         self.server_ip = server_ip
         self.server_port = server_port
@@ -15,10 +17,65 @@ class Client(Node):
         self.log = Logger("Client")
         self.buffer_size = 1024
         self.segment = Segment()
+        self.gameState = None
+        self.player_number = None
 
     def run(self):
         if (self.three_way_handshake()):
             self.listen_file()
+
+    def run_game(self):
+        self.three_way_handshake()
+
+        while True : 
+            # listen for client number
+            try:
+                segment_data, _ = self.connection.listen(1)
+                if(segment_data.is_syn_flag and segment_data.get_header()['seqNumber'] == 0):
+                    #inisialisasi
+                    self.log.success_log(f"Received segment {segment_data.get_header()['seqNumber']} from {self.server_ip}:{self.server_port} with data {segment_data.get_data().decode()}")
+                    self.segment = Segment()
+                    self.segment.set_seq_number(0)
+                    self.segment.set_flag([False, True, False])
+                    self.connection.send(self.server_ip, self.server_port, self.segment)
+                    self.player_number = segment_data.get_data().decode()
+                elif (segment_data.is_syn_ack_flag and segment_data.get_header()['seqNumber'] == 1):
+                    # init game state
+                    self.gameState = GameState(self.player_number, json.loads(segment_data.get_data().decode()))
+                    if (self.gameState.clientNumber == '2'):
+                        self.gameState.printBoard()
+                    self.segment = Segment()
+                    self.segment.set_seq_number(1)
+                    self.segment.set_flag([False, True, False])
+                    # print disini
+                    self.connection.send(self.server_ip, self.server_port, self.segment)
+                elif (segment_data.is_syn_ack_flag and segment_data.get_header()['seqNumber'] == 2):
+                    if(self.gameState.clientNumber == self.player_number):
+                        self.gameState.board = json.loads(segment_data.get_data().decode())
+                        self.gameState.printBoard()
+
+                        move = self.gameState.input_mark()
+                        self.segment = Segment()
+                        self.segment.set_data(json.dumps(move).encode())
+                        self.segment.set_flag([True, True, False])
+                        self.connection.send(self.server_ip, self.server_port, self.segment)
+                elif(segment_data.get_header()['seqNumber'] == 3):
+                    self.gameState.board = json.loads(segment_data.get_data().decode())
+                    self.log.success_log("[!] Board Updated")
+                    self.gameState.printBoard()
+                    self.log.alert_log("[!] Waiting for opponent...")
+                    self.segment = Segment()
+                    self.segment.set_flag([False, True, False])
+                    self.connection.send(self.server_ip, self.server_port, self.segment)
+                    
+                elif(segment_data.is_fin_flag and segment_data.get_header()['seqNumber'] == 4):
+                    print(segment_data.get_data().decode())
+                    break
+            except socket.timeout:
+                self.connection.send(self.server_ip, self.server_port, self.segment)
+            except Exception as e:
+                self.log.warning_log(f'[!] Unknown error occured, exiting...')
+                exit()
 
     def three_way_handshake(self):
         # Send initial connection
@@ -147,6 +204,7 @@ def load_args():
     arg.add_argument('-i', '--ip', type=str, default='localhost', help='ip to listen on')
     arg.add_argument('-p', '--port', type=int, default=1337, help='port to listen on')
     arg.add_argument('-f', '--folder', type=str, default='output', help='path to folder output')
+    arg.add_argument('-g', '--game', type=str, default='0', help='turn on or off game')
     args = arg.parse_args()
     return args
 
@@ -154,5 +212,9 @@ def load_args():
 if __name__ == "__main__":
     args = load_args()
     print(args.clientip, args.clientport)
-    klien = Client(Connection(ip = args.clientip, port=args.clientport), server_ip=args.ip, server_port=args.port, folder_path=args.folder)
-    klien.run()
+    if args.game == '0':
+        klien = Client(Connection(ip = args.clientip, port=args.clientport), server_ip=args.ip, server_port=args.port, folder_path=args.folder)
+        klien.run()
+    else : 
+        klien = Client(Connection(ip = args.clientip, port=args.clientport), server_ip=args.ip, server_port=args.port)
+        klien.run_game()
