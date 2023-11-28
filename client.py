@@ -15,6 +15,15 @@ class Client(Node):
         self.log = Logger("Client")
         self.buffer_size = 1024
         self.segment = Segment()
+        self.gameState = None
+
+    def printBoard(self, board):
+        for row in range (3):
+            if row != 2:
+                print(f"   {board[row][0]} | {board[row][1]} | {board[row][2]}   ")
+                print("-------------")
+            else:
+                print(f"   {board[row][0]} | {board[row][1]} | {board[row][2]}   ")
 
     def run(self):
         self.three_way_handshake()
