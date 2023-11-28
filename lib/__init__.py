@@ -5,3 +5,4 @@ from .Node import *
 from .Segment import *
 from .SegmentFlag import *
 from .Utils import *
+from .Hamming import *

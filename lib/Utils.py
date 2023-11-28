@@ -1,14 +1,20 @@
 from .Constant import *
-
+from .Hamming import *
 
 def breakdown_file(data: bytes) -> list:
     list_data = []
+    hamming = Hamming()
+    halfPayload = PAYLOAD_SIZE // 2
+    
     while (len(data) > 0):
-        if (len(data)) > PAYLOAD_SIZE:
-            list_data.append(data[:PAYLOAD_SIZE])
-            data = data[PAYLOAD_SIZE:]
+        if (len(data)) > halfPayload:
+            encodedData = hamming.breakdownDataToBytes(data[:halfPayload])
+            
+            list_data.append(encodedData)
+            data = data[halfPayload:]
         else:
-            list_data.append(data)
+            encodedData = hamming.breakdownDataToBytes(data)
+            list_data.append(encodedData)
             data = b''
     return list_data
 

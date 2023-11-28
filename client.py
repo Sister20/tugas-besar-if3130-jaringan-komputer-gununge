@@ -67,6 +67,7 @@ class Client(Node):
         Rn = 0
         Sn = 0
         METADATA_SEQ = -1
+        hamming = Hamming()
 
         # Terima file, pengulangan hingga file selesai
         while True:
@@ -102,10 +103,11 @@ class Client(Node):
                 elif Sn == Rn:
                     data = file_segment.get_data()
                     if data:
+                        decodedData = hamming.breakdownBytes(data)
                         file = open(self.folder_path + '/' +
                                     self.file_path, 'ab')
                         file.seek(Sn)
-                        file.write(data)
+                        file.write(decodedData)
                         Rn += 1
 
                     # Kirim ACK
