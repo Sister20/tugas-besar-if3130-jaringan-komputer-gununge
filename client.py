@@ -17,13 +17,15 @@ class Client(Node):
         self.segment = Segment()
 
     def run(self):
-        self.three_way_handshake()
-        self.listen_file()
+        if (self.three_way_handshake()):
+            self.listen_file()
 
     def three_way_handshake(self):
         # Send initial connection
         self.log.alert_log(f"[!] Starting 3-way handshake with {self.server_ip}:{self.server_port}")
         # Initial Connection
+        self.segment.update_checksum()
+        # print("Nilai checksum: ", self.segment.get_header()['checksum'])
         self.connection.send(self.server_ip, self.server_port, self.segment)
 
         while True:
@@ -55,12 +57,15 @@ class Client(Node):
             except socket.timeout:
                 if self.segment.is_syn_ack_flag():
                     self.log.warning_log("[!] [TIMEOUT] ACK Response Timed out, retrying...")
-                    self.connection.send(ip_remote=self.server_ip, port_remote=self.server_port, message=self.segment)
+                    # self.connection.send(ip_remote=self.server_ip, port_remote=self.server_port, message=self.segment)
                 else:
                     self.log.warning_log("[!] [TIMEOUT] SYN Response Timed out")
+                return 0
+                
             except Exception as e:
                 self.log.warning_log(f"[!] Error: {e}")
-                return
+                return 0
+        return 1
 
     def listen_file(self):
         N = WINDOW_SIZE
@@ -78,7 +83,9 @@ class Client(Node):
                 flag = file_segment.get_flag()
 
                 # if in the last send FIN ACK and break
-
+                if Sn > Rn:
+                    break
+                
                 if (Sn == METADATA_SEQ):
                     self.file_path = (Utils.decode_metadata(file_segment.get_data())).decode('UTF-8')
                     self.log.success_log(f"[!] Receiving file {self.file_path}")
@@ -129,8 +136,8 @@ class Client(Node):
                 self.log.warning_log("[!] [TIMEOUT] Response Timed out, retrying...")
 
             except Exception as e:
-                self.log.warning_log(e)
-                break
+                self.log.warning_log("aaaaaaaaaa", e)
+                # break
 
 
 def load_args():

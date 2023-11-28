@@ -1,4 +1,5 @@
 import socket
+from .Logger import Logger
 from .Segment import Segment
 from .Constant import *
 
@@ -8,6 +9,7 @@ class Connection:
         self.port = port
         self.__socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.__socket.bind((self.ip, self.port))
+        self.log = Logger("Connection")
 
     def send(self, ip_remote: str, port_remote: int, message: Segment):
         self.__socket.sendto(message.get_bytes(), (ip_remote, port_remote))
@@ -19,7 +21,7 @@ class Connection:
             message.set_from_bytes(data)
             # check checksum
             if not message.valid_checksum():
-                raise Exception("Checksum not valid")
+                self.log.warning_log("Checksum not valid")
             return message, addr
 
     def close(self):
