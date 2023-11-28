@@ -12,7 +12,7 @@ Kelompok 1 K03 - GunungE
 | 13521004 | Henry Anand Septian Radityo (Manusia Rasis) |
 | 13521007 | Matthew Mahendra (Si Bucin ke Bandung Mulu) |
 | 13521015 | Hidayatullah Wildan Ghaly (Manusia Penggali) |
-| 13521024 | Ahmad Nadil (yg paling normal) |
+| 13521024 | Ahmad Nadil (yg paling homo bisex lgbt) |
 
 ![Kelompok 1 K03](input/penampakan.jpg)
 
