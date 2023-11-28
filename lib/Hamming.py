@@ -106,26 +106,20 @@ class Hamming:
         return self.hammingRecovery(data, r)
 
     def breakdownBytes(self, data):
-        final = bytearray()
-
+        final = b''
         if len(data) % 2 != 0:
             raise ValueError("Panjang data harus genap untuk dekode Hamming 4-bit.")
 
-        def decode_chunk(chunk):
-            byte1, byte2 = chunk
+        for i in range(0, len(data), 2):
+            byte1, byte2 = data[i], data[i + 1]
             bin_value1 = format(byte1, '08b')
             bin_value2 = format(byte2, '08b')
             decoded_value1 = self.hammingDecode(int(bin_value1, 2))
             decoded_value2 = self.hammingDecode(int(bin_value2, 2))
             combined_byte = (decoded_value1 << 4) | decoded_value2
-            return struct.pack('B', combined_byte)
-
-        with ThreadPoolExecutor() as executor:
-            chunks = [(data[i], data[i + 1]) for i in range(0, len(data), 2)]
-            decoded_chunks = list(executor.map(decode_chunk, chunks))
-            final.extend(decoded_chunks)
-
-        return bytes(final)
+            final += struct.pack('B', combined_byte)
+        
+        return final
     
 
 if __name__ == "__main__":

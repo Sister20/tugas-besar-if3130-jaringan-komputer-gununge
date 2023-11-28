@@ -139,10 +139,6 @@ class Client(Node):
                 self.log.success_log(f"Received segment {Sn} from {self.server_ip}:{self.server_port}")
                 flag = file_segment.get_flag()
 
-                # if in the last send FIN ACK and break
-                if Sn > Rn:
-                    break
-                
                 if (Sn == METADATA_SEQ):
                     self.file_path = (Utils.decode_metadata(file_segment.get_data())).decode('UTF-8')
                     self.log.success_log(f"[!] Receiving file {self.file_path}")
