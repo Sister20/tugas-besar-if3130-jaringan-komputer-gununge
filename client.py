@@ -1,11 +1,13 @@
 import argparse
+import json
 import socket
 
 from lib import *
+from lib.GameState import GameState
 
 
 class Client(Node):
-    def __init__(self, connection: Connection, server_ip: str, server_port: str, folder_path: str):
+    def __init__(self, connection: Connection, server_ip: str, server_port: str, folder_path: str = None):
         self.connection = connection
         self.server_ip = server_ip
         self.server_port = server_port
@@ -17,17 +19,61 @@ class Client(Node):
         self.segment = Segment()
         self.gameState = None
 
-    def printBoard(self, board):
-        for row in range (3):
-            if row != 2:
-                print(f"   {board[row][0]} | {board[row][1]} | {board[row][2]}   ")
-                print("-------------")
-            else:
-                print(f"   {board[row][0]} | {board[row][1]} | {board[row][2]}   ")
-
     def run(self):
         self.three_way_handshake()
         self.listen_file()
+
+    def run_game(self):
+        self.three_way_handshake()
+        while True : 
+            # listen for client number
+            client_number, _ = self.connection.listen()
+            self.log.success_log(f"Received segment {client_number.get_header()['seqNumber']} from {self.server_ip}:{self.server_port} with data {client_number.get_data().decode()}")
+            break
+        # initialize game state
+        while True : 
+            try:
+                board, _ = self.connection.listen(TIMEOUT_LISTEN)
+                self.gameState = GameState(client_number.get_data().decode(), json.loads(board.get_data().decode()))
+                break
+            except socket.timeout:
+                self.log.warning_log("[!] [TIMEOUT] Response Timed out, retrying...")
+                continue
+        if (self.gameState.clientNumber == "2"):
+            self.gameState.printBoard()
+        while True:
+            try:
+                board, _ = self.connection.listen(TIMEOUT_LISTEN)
+                if(not board.is_fin_flag()):
+                    self.log.success_log(f"[!] Your turn")
+                    self.gameState.board = json.loads(board.get_data().decode())
+                    self.gameState.printBoard()
+
+                    # input mark
+                    move = self.gameState.input_mark()
+                    seg = Segment()
+                    seg.set_data(json.dumps(move).encode())
+                    self.connection.send(self.server_ip, self.server_port, seg)
+                    # listen for board
+                    board, _ = self.connection.listen(TIMEOUT_LISTEN)
+                    self.gameState.board = json.loads(board.get_data().decode())
+                    self.log.success_log("[!] Board Updated")
+                    self.gameState.printBoard()
+                    self.log.alert_log("[!] Waiting for opponent...")
+                else:
+                    # PRINT THE MESSAGE
+                    print(board.get_data().decode())
+                    break
+            except socket.timeout:
+                self.log.warning_log("[!] [TIMEOUT] Response Timed out, retrying...")
+                continue
+            # except Exception as e:
+            #     self.log.warning_log(e)
+            #     break
+
+
+        
+        # Game
 
     def three_way_handshake(self):
         # Send initial connection
@@ -143,6 +189,7 @@ def load_args():
     arg.add_argument('-i', '--ip', type=str, default='localhost', help='ip to listen on')
     arg.add_argument('-p', '--port', type=int, default=1337, help='port to listen on')
     arg.add_argument('-f', '--folder', type=str, default='output', help='path to folder output')
+    arg.add_argument('-g', '--game', type=str, default='0', help='turn on or off game')
     args = arg.parse_args()
     return args
 
@@ -150,5 +197,9 @@ def load_args():
 if __name__ == "__main__":
     args = load_args()
     print(args.clientip, args.clientport)
-    klien = Client(Connection(ip = args.clientip, port=args.clientport), server_ip=args.ip, server_port=args.port, folder_path=args.folder)
-    klien.run()
+    if args.game == '0':
+        klien = Client(Connection(ip = args.clientip, port=args.clientport), server_ip=args.ip, server_port=args.port, folder_path=args.folder)
+        klien.run()
+    else : 
+        klien = Client(Connection(ip = args.clientip, port=args.clientport), server_ip=args.ip, server_port=args.port)
+        klien.run_game()

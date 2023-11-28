@@ -4,18 +4,21 @@ import os
 import threading
 import time
 from typing import Dict, List, Tuple
+import json
 
 from lib import *
+from lib.GameManager import GameManager
 
 class Server(Node):
-    def __init__(self, connection: Connection, file_path: str):
+    def __init__(self, connection: Connection, file_path: str = None):
         self.log = Logger("Server")
         self.connection = connection
         self.segment = Segment()
         self.file_path = file_path
-        self.file = open(self.file_path, 'rb').read()
-        self.file_segment = breakdown_file(self.file)
-        self.file_name, self.file_extension = os.path.splitext(os.path.basename(file_path))
+        if(file_path != None):
+            self.file = open(self.file_path, 'rb').read()
+            self.file_segment = breakdown_file(self.file)
+            self.file_name, self.file_extension = os.path.splitext(os.path.basename(file_path))
         self.port_clients = []
         self.client_list = []
         self.parallel = False
@@ -40,13 +43,67 @@ class Server(Node):
             if not self.parallel:
                 self.start_connection()
 
+    def run_game(self):
+        while len(self.client_list) < 2:
+            self.listen_for_clients()
+
+        for client in self.client_list:
+            self.three_way_handshake(ip_client=client[0], port_client=client[1])
+            seg = Segment()
+            seg.set_seq_number(0)
+            seg.set_data(str(self.client_list.index(client)+1).encode())
+            self.connection.send(client[0], client[1], seg)
+
+        gm = GameManager(self.client_list[0], self.client_list[1])
+        for client in self.client_list:
+            seg = Segment()
+            seg.set_seq_number(0)
+            seg.set_data(json.dumps(gm.gamestate).encode())
+            self.connection.send(client[0], client[1], seg)
+        
+        while (not gm.menang):
+            # Step 1 : Kirim current player turn
+            seg = Segment()
+            board_bytes = json.dumps(gm.gamestate).encode()
+            seg.set_data(board_bytes)
+            seg.set_seq_number(gm.pemain)
+            self.connection.send(self.client_list[gm.pemain-1][0], self.client_list[gm.pemain-1][1], seg)
+            # Step 2 : Terima Move
+            while True:
+                try:
+                    move, _ = self.connection.listen(TIMEOUT_LISTEN)
+                    gm.setState(json.loads(move.get_data().decode()))
+                    seg = Segment()
+                    seg.set_seq_number(gm.pemain)
+                    seg.set_data(json.dumps(gm.gamestate).encode())
+                    self.connection.send(self.client_list[gm.pemain-1][0], self.client_list[gm.pemain-1][1], seg)
+                    gm.newTurn()
+                    gm.validate()
+                    break
+                except socket.timeout:
+                    self.log.warning_log("[!] [TIMEOUT] Response Timed out, retrying...")
+                    continue
+
+        segFin = Segment()
+        segFin.set_flag([False, False, True]) 
+        msg = ""
+        if(gm.winner == 0 or gm.winner == 3):
+            msg = "Draw Game"
+        elif(gm.winner == 1 or gm.winner == 2):
+            msg = f"Player {gm.winner} wins the game"
+        
+        segFin.set_data(msg.encode())
+
+        for client in self.client_list:
+            self.connection.send(client[0], client[1], segFin)
+        
     def listen_for_clients(self):
         while True:
             if (self.parallel):
                 self.parallel_listen()
             else:
                 try:
-                    self.log.alert_log(f"[!] Broadcasting {self.file_name}{self.file_extension} to {self.connection.ip}:{self.connection.port}")
+                    # self.log.alert_log(f"[!] Broadcasting {self.file_name}{self.file_extension} to {self.connection.ip}:{self.connection.port}")
                     _, (client_ip, client_port) = self.connection.listen(TIMEOUT_LISTEN)
                     if (client_ip, client_port) not in self.client_list:
                         self.client_list.append((client_ip, client_port))
@@ -239,6 +296,7 @@ def load_args():
     arg.add_argument('-p', '--port', type=int, default=1337, help='port to listen on')
     arg.add_argument('-f', '--file', type=str, default='input.txt', help='path to file input')
     arg.add_argument('-par', '--parallel', type=int, default=0, help='turn on/off parallel mode')
+    arg.add_argument('-g', '--game', type=int, default=0, help='turn on/off game mode')
     args = arg.parse_args()
     return args
 
@@ -246,5 +304,9 @@ def load_args():
 if __name__ == '__main__':
     while True:
         args = load_args()
-        server = Server(Connection(ip=args.ip, port=args.port),file_path=args.file)
+        if args.game:
+            server = Server(Connection(ip=args.ip, port=args.port))
+            server.run_game()
+        else:
+            server = Server(Connection(ip=args.ip, port=args.port),file_path=args.file)
         server.run()
